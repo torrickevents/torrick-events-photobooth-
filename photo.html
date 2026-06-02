@@ -88,8 +88,12 @@ async function loadPhoto() {
     eventNameEl.textContent = data.eventName || '';
     const url = data.photoUrl;
 
-    // Detect if video/gif based on URL
+    // Convert webm to mp4 via Cloudinary URL transformation for iOS compatibility
     const isVideo = url.includes('/video/upload/') || url.match(/\.(webm|mp4|mov)(\?|$)/i);
+    // Force MP4 format for iOS saving — Cloudinary converts on the fly
+    const iosUrl = isVideo && url.includes('cloudinary.com') 
+      ? url.replace('/upload/', '/upload/f_mp4/').replace(/\.(webm|mov)$/, '.mp4')
+      : url;
 
     if (isVideo) {
       pageTitle.textContent = 'Your Video';
