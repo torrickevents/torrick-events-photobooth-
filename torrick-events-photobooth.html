@@ -618,6 +618,8 @@ select:focus { outline:none; border-color:var(--accent); }
 </style>
 </head>
 <body>
+<!-- Cloudinary config — replace YOUR_CLOUD_NAME with your actual cloud name -->
+<script>window.CLOUDINARY_CLOUD_NAME = 'ddgpdh8da';</script>
 
 <!-- ══════════════════════════════
      LANDING / SELECT EVENT
@@ -1651,7 +1653,29 @@ function fillCarrier(domain) {
   }
 }
 
-// ─── SEND VIA SENDGRID NETLIFY FUNCTION ───
+// ─── UPLOAD TO CLOUDINARY DIRECTLY FROM BROWSER ───
+async function uploadToCloudinary(blob, fileType) {
+  const CLOUD_NAME = 'YOUR_CLOUD_NAME'; // replaced at runtime via meta tag
+  // Get cloud name from Netlify env via a small inline script
+  const cloudName = window.CLOUDINARY_CLOUD_NAME;
+  if (!cloudName) throw new Error('Cloudinary not configured');
+
+  const formData = new FormData();
+  const ext = fileType && fileType.includes('video') ? 'webm' : 'jpg';
+  formData.append('file', new File([blob], `photo.${ext}`, { type: fileType || 'image/jpeg' }));
+  formData.append('upload_preset', 'torrick_events'); // unsigned preset
+  formData.append('folder', 'torrick-events');
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+    method: 'POST',
+    body: formData
+  });
+  const data = await res.json();
+  if (data.secure_url) return data.secure_url;
+  throw new Error('Cloudinary upload failed: ' + JSON.stringify(data));
+}
+
+// ─── SEND VIA EMAIL / SMS ───
 async function sendViaEmail() {
   const email = document.getElementById('guest-email').value.trim();
   if (!email || !email.includes('@')) {
@@ -1662,34 +1686,43 @@ async function sendViaEmail() {
   btn.disabled = true; btn.textContent = 'Sending…';
   setStatus('', '');
 
+  const SMS_DOMAINS = ['vtext.com','txt.att.net','tmomail.net','messaging.sprintpcs.com',
+                       'mymetropcs.com','sms.myboostmobile.com','vmobl.com','cricketwireless.net'];
+  const isSMS = SMS_DOMAINS.some(d => email.includes('@' + d));
+
   try {
-    // Get the image as base64
-    const { stripBlob, stripUrl, id, meta } = currentShareItem;
+    const { stripBlob, id, meta } = currentShareItem;
     const isStrip = !!stripBlob;
     let blob = isStrip ? stripBlob : await idbGet(id);
     if (!blob) { setStatus('Could not load photo. Try saving instead.', 'error'); btn.disabled=false; btn.textContent='✉ Send Photo'; return; }
 
-    const base64 = await blobToBase64(blob);
     const ev = events.find(e => e.id === activeEventId);
     const eventName = ev ? ev.name : 'your event';
     const fileType = (isStrip || meta?.type === 'photo') ? 'image/jpeg' : 'video/webm';
     const fileName = isStrip ? 'photo-strip.jpg' : (meta?.type === 'photo' ? 'photo.jpg' : 'video.webm');
 
+    let payload;
+
+    if (isSMS) {
+      // Upload to Cloudinary from browser, then send just the URL
+      setStatus('Uploading photo…', '');
+      const photoUrl = await uploadToCloudinary(blob, fileType);
+      payload = { to: email, eventName, photoUrl };
+    } else {
+      // Regular email — send base64
+      const base64 = await blobToBase64(blob);
+      payload = { to: email, eventName, fileBase64: base64, fileName, fileType };
+    }
+
     const res = await fetch('/.netlify/functions/send-photo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: email,
-        eventName,
-        fileBase64: base64,
-        fileName,
-        fileType
-      })
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json();
     if (res.ok && data.success) {
-      setStatus('✓ Sent! Check your phone or inbox.', 'success');
+      setStatus(isSMS ? '✓ Text sent! They\'ll get a link to tap.' : '✓ Sent! Check your inbox.', 'success');
       btn.textContent = '✓ Sent!';
       document.getElementById('guest-email').value = '';
       setTimeout(() => { btn.disabled=false; btn.textContent='✉ Send Another'; }, 2000);
