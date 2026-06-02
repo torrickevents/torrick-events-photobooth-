@@ -1,57 +1,10 @@
 const https = require('https');
-const crypto = require('crypto');
 
-// ── Upload to Cloudinary, return public URL ──
-function uploadToCloudinary(base64, fileType, cloudName, apiKey, apiSecret) {
-  return new Promise((resolve, reject) => {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = crypto
-      .createHash('sha1')
-      .update(`timestamp=${timestamp}${apiSecret}`)
-      .digest('hex');
-
-    const mimeType = fileType || 'image/jpeg';
-    const resourceType = mimeType.includes('video') ? 'video' : 'image';
-    const dataUri = `data:${mimeType};base64,${base64}`;
-
-    const formData = [
-      `file=${encodeURIComponent(dataUri)}`,
-      `timestamp=${timestamp}`,
-      `api_key=${apiKey}`,
-      `signature=${signature}`,
-      `folder=torrick-events`
-    ].join('&');
-
-    const req = https.request({
-      hostname: 'api.cloudinary.com',
-      path: `/v1_1/${cloudName}/${resourceType}/upload`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(formData)
-      }
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (json.secure_url) resolve(json.secure_url);
-          else reject(new Error('No URL returned: ' + data));
-        } catch(e) { reject(e); }
-      });
-    });
-    req.on('error', reject);
-    req.write(formData);
-    req.end();
-  });
-}
-
-// ── Send email via Resend ──
-function sendEmail(to, subject, html, base64, fileName, fileType, apiKey) {
+// Send email via Resend
+function sendEmail(to, subject, html, base64, fileName, fileType, apiKey, fromEmail) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
-      from: `Torrick Events <${process.env.FROM_EMAIL || 'photos@torrickevents.com'}>`,
+      from: `Torrick Events <${fromEmail}>`,
       to: [to],
       subject,
       html,
@@ -71,7 +24,7 @@ function sendEmail(to, subject, html, base64, fileName, fileType, apiKey) {
       res.on('data', c => data += c);
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) resolve();
-        else reject(new Error('Resend error: ' + data));
+        else reject(new Error('Resend error ' + res.statusCode + ': ' + data));
       });
     });
     req.on('error', reject);
@@ -80,12 +33,11 @@ function sendEmail(to, subject, html, base64, fileName, fileType, apiKey) {
   });
 }
 
-// ── Send SMS via Resend (plain text + link) ──
-function sendSMS(to, eventName, photoUrl, resendKey) {
+// Send SMS with just a link (no attachment)
+function sendSMSLink(to, eventName, photoUrl, apiKey, fromEmail) {
   return new Promise((resolve, reject) => {
-    const fromEmail = process.env.FROM_EMAIL || 'photos@torrickevents.com';
     const subject = `Your photo from ${eventName}`;
-    const html = `<p>📸 Your photo from ${eventName} is ready!<br><br>Tap to save: <a href="${photoUrl}">${photoUrl}</a><br><br>— Torrick Events</p>`;
+    const html = `<p>📸 Your photo from <strong>${eventName}</strong> is ready!<br><br><a href="${photoUrl}" style="font-size:18px;font-weight:bold;">Tap here to view & save your photo</a><br><br>— Torrick Events 🎉</p>`;
     const payload = JSON.stringify({
       from: `Torrick Events <${fromEmail}>`,
       to: [to],
@@ -97,7 +49,7 @@ function sendSMS(to, eventName, photoUrl, resendKey) {
       path: '/emails',
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${resendKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload)
       }
@@ -115,7 +67,6 @@ function sendSMS(to, eventName, photoUrl, resendKey) {
   });
 }
 
-// ── Main handler ──
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
@@ -125,16 +76,11 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch(e) { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
-  const { to, eventName, fileBase64, fileName, fileType } = body;
-  if (!to || !fileBase64) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields' }) };
-  }
+  const { to, eventName, fileBase64, fileName, fileType, photoUrl } = body;
+  if (!to) return { statusCode: 400, body: JSON.stringify({ error: 'Missing to address' }) };
 
   const RESEND_KEY = process.env.RESEND_API_KEY;
-  const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
-  const CLOUD_KEY = process.env.CLOUDINARY_API_KEY;
-  const CLOUD_SECRET = process.env.CLOUDINARY_API_SECRET;
-
+  const FROM_EMAIL = process.env.FROM_EMAIL || 'photos@torrickevents.com';
   if (!RESEND_KEY) return { statusCode: 500, body: JSON.stringify({ error: 'Resend key missing' }) };
 
   const SMS_DOMAINS = ['vtext.com','txt.att.net','tmomail.net','messaging.sprintpcs.com',
@@ -143,14 +89,12 @@ exports.handler = async (event) => {
 
   try {
     if (isSMS) {
-      // Upload to Cloudinary first to get a shareable link
-      if (!CLOUD_NAME || !CLOUD_KEY || !CLOUD_SECRET) {
-        return { statusCode: 500, body: JSON.stringify({ error: 'Cloudinary credentials missing' }) };
-      }
-      const photoUrl = await uploadToCloudinary(fileBase64, fileType, CLOUD_NAME, CLOUD_KEY, CLOUD_SECRET);
-      await sendSMS(to, eventName, photoUrl, RESEND_KEY);
+      // photoUrl was uploaded to Cloudinary directly from browser — just send the link
+      if (!photoUrl) return { statusCode: 400, body: JSON.stringify({ error: 'No photo URL for SMS' }) };
+      await sendSMSLink(to, eventName, photoUrl, RESEND_KEY, FROM_EMAIL);
     } else {
-      // Regular email — embed photo inline + attach
+      // Full email with embedded photo
+      if (!fileBase64) return { statusCode: 400, body: JSON.stringify({ error: 'No photo data' }) };
       const isVideo = fileType && fileType.includes('video');
       const subject = `Your photo from ${eventName} — Torrick Events 🎉`;
       const html = `
@@ -162,16 +106,15 @@ exports.handler = async (event) => {
             <p style="color:rgba(255,255,255,0.6);font-size:14px;margin-top:8px">${eventName}</p>
           </div>
           ${isVideo
-            ? `<p style="text-align:center;color:rgba(255,255,255,0.7);font-size:14px;">Your video is attached — tap it to save.</p>`
-            : `<img src="data:${fileType || 'image/jpeg'};base64,${fileBase64}" alt="Your photo" style="width:100%;border-radius:8px;border:1px solid rgba(201,168,76,0.3);display:block;" />`
+            ? `<p style="text-align:center;color:rgba(255,255,255,0.7);">Your video is attached — tap to save.</p>`
+            : `<img src="data:${fileType||'image/jpeg'};base64,${fileBase64}" alt="Your photo" style="width:100%;border-radius:8px;border:1px solid rgba(201,168,76,0.3);display:block;" />`
           }
           <div style="text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid rgba(201,168,76,0.2);">
             <p style="color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:2px;">TORRICK EVENTS · Photo Booth Studio</p>
           </div>
         </div>`;
-      await sendEmail(to, subject, html, fileBase64, fileName || (isVideo ? 'memory.webm' : 'photo.jpg'), fileType, RESEND_KEY);
+      await sendEmail(to, subject, html, fileBase64, fileName||(isVideo?'memory.webm':'photo.jpg'), fileType, RESEND_KEY, FROM_EMAIL);
     }
-
     return { statusCode: 200, body: JSON.stringify({ success: true }) };
   } catch(e) {
     console.error('Error:', e.message);
