@@ -1671,7 +1671,14 @@ async function uploadToCloudinary(blob, fileType) {
     body: formData
   });
   const data = await res.json();
-  if (data.secure_url) return data.secure_url;
+  if (data.secure_url) {
+    // Ensure URL has proper extension so browsers open it correctly
+    let url = data.secure_url;
+    if (!url.match(/\.(jpg|jpeg|png|webm|mp4)$/i)) {
+      url = url + (fileType && fileType.includes('video') ? '.webm' : '.jpg');
+    }
+    return url;
+  }
   throw new Error('Cloudinary upload failed: ' + JSON.stringify(data));
 }
 
