@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Your Photo — Torrick Events</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: #1a1209;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .card {
+    background: #1e1608;
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 16px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+  .brand {
+    font-size: 10px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #C9A84C;
+    margin-bottom: 6px;
+  }
+  .divider {
+    width: 50px; height: 1px;
+    background: linear-gradient(90deg, transparent, #C9A84C, transparent);
+    margin: 10px auto 16px;
+  }
+  .title {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 24px;
+    color: #e8d5a3;
+    margin-bottom: 4px;
+  }
+  .event-name {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 20px;
+  }
+  #photo-wrap { margin-bottom: 20px; }
+  #photo-wrap img {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(201,168,76,0.2);
+    display: block;
+  }
+  .save-btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #8B6914, #C9A84C, #8B6914);
+    color: #000;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    margin-bottom: 10px;
+  }
+  .footer {
+    margin-top: 20px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.25);
+    text-transform: uppercase;
+  }
+  .loading {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 20px;
+    color: #C9A84C;
+    padding: 40px;
+    text-align: center;
+  }
+  .error {
+    color: #ff8080;
+    font-size: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">Torrick Events</div>
+  <div class="divider"></div>
+  <div class="title">Your Photo</div>
+  <div class="event-name" id="event-name"></div>
+  <div id="photo-wrap"><div class="loading">Loading your photo…</div></div>
+  <div id="actions"></div>
+  <div class="footer">Torrick Events · Photo Booth Studio</div>
+</div>
+
+<script>
+async function loadPhoto() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  const wrap = document.getElementById('photo-wrap');
+  const actions = document.getElementById('actions');
+  const eventNameEl = document.getElementById('event-name');
+
+  if (!id) {
+    wrap.innerHTML = '<div class="error">No photo ID found.</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`/.netlify/functions/get-photo?id=${id}`);
+    const data = await res.json();
+
+    if (!res.ok || !data.photoUrl) {
+      wrap.innerHTML = '<div class="error">Photo not found or expired.</div>';
+      return;
+    }
+
+    eventNameEl.textContent = data.eventName || '';
+
+    // Display photo
+    const img = document.createElement('img');
+    img.src = data.photoUrl;
+    img.alt = 'Your photo from ' + (data.eventName || 'Torrick Events');
+    wrap.innerHTML = '';
+    wrap.appendChild(img);
+
+    // Save button
+    const saveBtn = document.createElement('a');
+    saveBtn.href = data.photoUrl;
+    saveBtn.download = 'torrick-events-photo.jpg';
+    saveBtn.className = 'save-btn';
+    saveBtn.textContent = '⬇ Save Photo to Camera Roll';
+    actions.appendChild(saveBtn);
+
+  } catch(e) {
+    wrap.innerHTML = '<div class="error">Could not load photo. Please try again.</div>';
+  }
+}
+
+loadPhoto();
+</script>
+</body>
+</html>
