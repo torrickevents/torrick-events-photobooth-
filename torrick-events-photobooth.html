@@ -1456,18 +1456,29 @@ function startGuestMode(mode) {
   const ev = events.find(e => e.id === activeEventId);
   if (ev) applyBoothTheme(ev);
   document.getElementById('booth-event-label').textContent = ev ? ev.name : '';
-  // Update shutter label
   const icons = { photo:'📸', gif:'🔄', video:'🎬' };
   const labels = { photo:'PHOTO', gif:'GIF', video:'VIDEO' };
   document.getElementById('shutter-icon').textContent = icons[mode];
   document.getElementById('shutter-label').textContent = labels[mode];
-  // Update mode pills
   document.querySelectorAll('.mode-pill').forEach(p => {
     p.classList.toggle('active', p.dataset.mode === mode);
   });
-  if (!videoStream) initCamera();
-  // Auto-trigger capture immediately
-  setTimeout(() => triggerCapture(), 500);
+
+  const startCapture = () => {
+    isCapturing = true;
+    sessionBlobs = [];
+    sessionTotal = { photo: { single:1, strip2:2, strip3:3, strip4:4, grid4:4 }[ev?.layout] || 1, gif:1, video:1 }[mode] || 1;
+    sessionCurrent = 0;
+    if (mode === 'photo') startPhotoSession();
+    else if (mode === 'gif') startCountdown(5, doGIF);
+    else startCountdown(5, doVideo);
+  };
+
+  if (!videoStream) {
+    initCamera().then(() => setTimeout(startCapture, 800));
+  } else {
+    setTimeout(startCapture, 300);
+  }
 }
 
 async function syncNow() {
@@ -1632,11 +1643,12 @@ function triggerCapture() {
 
 function startPhotoSession() {
   sessionCurrent++;
-  // Show "Photo X of N" in the shutter label when doing multi-shot
   if (sessionTotal > 1) {
     document.getElementById('shutter-label').textContent = `${sessionCurrent} OF ${sessionTotal}`;
   }
-  startCountdown(3, snapPhoto);
+  // 5 seconds for first shot, 3 seconds between subsequent shots
+  const countdownTime = sessionCurrent === 1 ? 5 : 3;
+  startCountdown(countdownTime, snapPhoto);
 }
 
 function snapPhoto() {
@@ -1812,9 +1824,6 @@ function stampWatermark(ctx, w, h) {
   ctx.shadowBlur = 0;
 }
 
-// ═══════════════════════════════
-// SAVE CAPTURE (gif / video only)
-// ═══════════════════════════════
 async function saveCapture(blob, type, mimeType) {
   const ev = events.find(e => e.id === activeEventId);
   const id = 'cap_' + Date.now();
@@ -1829,29 +1838,41 @@ async function saveCapture(blob, type, mimeType) {
 // Show share screen right after capture (for gif/video or single-photo layout)
 async function showPostCaptureShare(id, meta) {
   currentShareItem = { id, meta };
-  const ev = events.find(e => e.id === meta.eventId);
 
   document.getElementById('share-event-name').textContent = meta.eventName || '';
-  document.getElementById('share-message').textContent =
-    `Thanks for visiting with us! Here's your ${meta.type === 'gif' ? 'GIF' : meta.type} 🎉`;
+  const typeLabel = meta.type === 'gif' ? 'GIF' : meta.type === 'video' ? 'video' : 'photo';
+  document.getElementById('share-message').textContent = `Thanks for visiting with us! Here's your ${typeLabel} 🎉`;
 
+  // Show correct preview
   const wrap = document.getElementById('share-media-wrap');
   wrap.innerHTML = '';
-  if (meta.type === 'photo') {
-    const img = document.createElement('img'); img.src = mediaBlobs[id]; wrap.appendChild(img);
+  const isVideo = meta.type === 'gif' || meta.type === 'video';
+  if (!isVideo) {
+    const img = document.createElement('img');
+    img.src = mediaBlobs[id];
+    img.style.cssText = 'max-width:100%;max-height:200px;border-radius:8px;border:1px solid rgba(255,255,255,0.07)';
+    wrap.appendChild(img);
   } else {
     const vid = document.createElement('video');
-    vid.src = mediaBlobs[id]; vid.autoplay=true; vid.loop=true; vid.muted=true; vid.playsinline=true;
+    vid.src = mediaBlobs[id];
+    vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsinline = true;
+    vid.style.cssText = 'max-width:100%;max-height:200px;border-radius:8px';
     wrap.appendChild(vid);
   }
 
   document.getElementById('share-overlay').classList.add('show');
   switchTab('qr');
-  document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px">Generating QR…</div>';
+  document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px;text-align:center">Generating QR…</div>';
 
-  // Generate QR in background
-  const blob2 = meta.type === 'photo' ? await idbGet(id) : null;
-  if (blob2) generateQRCode(blob2, 'image/jpeg', meta.eventName || '');
+  // Generate QR for ALL types — get blob from IDB
+  const blob = await idbGet(id);
+  if (blob) {
+    const fileType = meta.mimeType || (isVideo ? 'video/webm' : 'image/jpeg');
+    generateQRCode(blob, fileType, meta.eventName || '');
+  } else {
+    document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:10px;color:#ff8080;font-size:11px;text-align:center">QR unavailable — use Email tab</div>';
+    switchTab('email');
+  }
 }
 
 // Build strip from a specific set of photo IDs and show share overlay
