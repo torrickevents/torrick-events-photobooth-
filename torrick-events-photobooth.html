@@ -912,18 +912,18 @@ select:focus { outline:none; border-color:var(--accent); }
           <span class="btn-desc">4 shots · arranged in a 2×2 grid</span>
         </span>
       </button>
-      <button class="mode-btn" onclick="startGuestMode('gif')">
-        <span class="btn-icon">🔄</span>
+      <button class="mode-btn" onclick="startGuestMode('glam')">
+        <span class="btn-icon">✨</span>
         <span class="btn-label">
-          <span class="btn-title">GIF / Boomerang</span>
-          <span class="btn-desc">Looping animation · QR scan to save</span>
+          <span class="btn-title">Glam Strip</span>
+          <span class="btn-desc">3 shots · soft glow beauty filter</span>
         </span>
       </button>
-      <button class="mode-btn" onclick="startGuestMode('video')">
-        <span class="btn-icon">🎬</span>
+      <button class="mode-btn" onclick="startGuestMode('burst')">
+        <span class="btn-icon">⚡</span>
         <span class="btn-label">
-          <span class="btn-title">Video</span>
-          <span class="btn-desc">8 second clip · QR scan to save</span>
+          <span class="btn-title">Photo Burst</span>
+          <span class="btn-desc">6 rapid shots · 2×3 collage</span>
         </span>
       </button>
     </div>
@@ -1464,30 +1464,20 @@ function startGuestMode(mode) {
   if (ev) applyBoothTheme(ev);
   document.getElementById('booth-event-label').textContent = ev ? ev.name : '';
 
-  const icons = { strip3:'📸', grid4:'⊞', gif:'🔄', video:'🎬' };
-  const labels = { strip3:'3 PHOTOS', grid4:'4 PHOTOS', gif:'GIF', video:'VIDEO' };
+  const icons = { strip3:'📸', grid4:'⊞', glam:'✨', burst:'⚡' };
+  const labels = { strip3:'3 PHOTOS', grid4:'4 PHOTOS', glam:'GLAM', burst:'BURST' };
   document.getElementById('shutter-icon').textContent = icons[mode] || '📸';
   document.getElementById('shutter-label').textContent = labels[mode] || '';
 
   // Shot counts per mode
-  const shotCounts = { strip3:3, grid4:4, gif:1, video:1 };
+  const shotCounts = { strip3:3, grid4:4, glam:3, burst:6 };
 
   const startCapture = () => {
     isCapturing = true;
     sessionBlobs = [];
-    sessionTotal = shotCounts[mode] || 1;
+    sessionTotal = shotCounts[mode] || 3;
     sessionCurrent = 0;
-
-    if (mode === 'gif') startCountdown(5, doGIF);
-    else if (mode === 'video') startCountdown(5, doVideo);
-    else {
-      // Photo strip or grid — use photo session flow
-      // Temporarily set layout so strip builder knows what to build
-      if (ev) {
-        ev._guestLayout = mode; // strip3 or grid4
-      }
-      startPhotoSession();
-    }
+    startPhotoSession();
   };
 
   if (!videoStream) {
@@ -1662,13 +1652,14 @@ function startPhotoSession() {
   if (sessionTotal > 1) {
     document.getElementById('shutter-label').textContent = `${sessionCurrent} OF ${sessionTotal}`;
   }
-  // 5 seconds for first shot, 3 seconds between subsequent shots
-  const countdownTime = sessionCurrent === 1 ? 5 : 3;
+  // Burst mode: 5 sec first shot, 1.5 sec between (rapid fire)
+  // Glam/strip/grid: 5 sec first shot, 3 sec between
+  const isBurst = boothMode === 'burst';
+  const countdownTime = sessionCurrent === 1 ? 5 : (isBurst ? 2 : 3);
   startCountdown(countdownTime, snapPhoto);
 }
 
 function snapPhoto() {
-  // Flash
   const flash = document.getElementById('booth-flash');
   flash.classList.add('on');
   setTimeout(() => flash.classList.remove('on'), 150);
@@ -1678,19 +1669,59 @@ function snapPhoto() {
   canvas.width = vid.videoWidth || 1280;
   canvas.height = vid.videoHeight || 960;
   const ctx = canvas.getContext('2d');
+
+  // Draw mirrored
   ctx.save(); ctx.scale(-1,1); ctx.drawImage(vid, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+
+  // Apply glam filter for glam mode
+  if (boothMode === 'glam') {
+    applyGlamFilter(ctx, canvas.width, canvas.height);
+  }
+
   stampWatermark(ctx, canvas.width, canvas.height);
 
   canvas.toBlob(blob => {
     sessionBlobs.push(blob);
     if (sessionCurrent < sessionTotal) {
-      // Short pause between shots so the flash clears, then next countdown
-      setTimeout(() => startPhotoSession(), 800);
+      setTimeout(() => startPhotoSession(), boothMode === 'burst' ? 300 : 800);
     } else {
-      // All shots done — save them all then build strip / share
       finishPhotoSession();
     }
   }, 'image/jpeg', 0.92);
+}
+
+function applyGlamFilter(ctx, w, h) {
+  // Soft glow: brighten + warm tones + subtle vignette
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    // Brighten + warm (boost red/green slightly, soften contrast)
+    data[i]   = Math.min(255, data[i]   * 1.08 + 12); // R — warm
+    data[i+1] = Math.min(255, data[i+1] * 1.05 + 8);  // G — slight boost
+    data[i+2] = Math.min(255, data[i+2] * 0.97 + 4);  // B — slight cool reduction
+    // Soft contrast: pull toward midtones
+    data[i]   = Math.min(255, data[i]   * 0.92 + 18);
+    data[i+1] = Math.min(255, data[i+1] * 0.92 + 18);
+    data[i+2] = Math.min(255, data[i+2] * 0.92 + 18);
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  // Soft vignette overlay
+  const vignette = ctx.createRadialGradient(w/2, h/2, h*0.3, w/2, h/2, h*0.85);
+  vignette.addColorStop(0, 'rgba(255,220,200,0.0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, w, h);
+
+  // Soft glow bloom
+  ctx.globalAlpha = 0.12;
+  ctx.filter = 'blur(12px) brightness(1.3)';
+  ctx.save(); ctx.scale(-1,1); ctx.filter = 'blur(8px)';
+  ctx.globalAlpha = 0.08;
+  ctx.drawImage(ctx.canvas, -w, 0, w, h);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.filter = 'none';
 }
 
 async function finishPhotoSession() {
@@ -1701,8 +1732,9 @@ async function finishPhotoSession() {
   if (sessionBlobs.length === 1) {
     await saveSinglePhoto(sessionBlobs[0], ev);
   } else {
-    // Use guestLayout if set, otherwise fall back to event layout
-    const layout = ev?._guestLayout || ev?.layout || 'strip3';
+    // Map mode to layout
+    const layoutMap = { strip3:'strip3', grid4:'grid4', glam:'glam', burst:'burst' };
+    const layout = layoutMap[boothMode] || boothMode || 'strip3';
     await saveAllAndBuildStrip(sessionBlobs, ev, layout);
   }
   sessionBlobs = [];
@@ -1904,13 +1936,9 @@ async function showPostCaptureShare(id, meta) {
   switchTab('qr');
   document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px;text-align:center">Generating QR…</div>';
 
-  // Hide email tab for gif/video — QR only
+  // Hide email tab for gif/video only — show for all photo types
   const emailTabBtn = document.getElementById('tab-email');
-  if (isVideo) {
-    emailTabBtn.style.display = 'none';
-  } else {
-    emailTabBtn.style.display = '';
-  }
+  emailTabBtn.style.display = '';
 
   // Generate QR for ALL types
   const blob = await idbGet(id);
@@ -1926,8 +1954,11 @@ async function showPostCaptureShare(id, meta) {
 // Build strip from a specific set of photo IDs and show share overlay
 async function showPostCaptureStrip(ev, ids, layout) {
   const toUse = ids.map(id => captureItems.find(c => c.id === id)).filter(Boolean);
-  layout = layout || ev?.layout || 'strip3';
-  const isGrid = layout === 'grid4';
+  layout = layout || 'strip3';
+  const isGrid4 = layout === 'grid4';
+  const isBurst = layout === 'burst';
+  const isGlam = layout === 'glam';
+  const isGrid = isGrid4 || isBurst;
 
   for (const c of toUse) {
     if (!mediaBlobs[c.id]) {
@@ -1942,9 +1973,13 @@ async function showPostCaptureStrip(ev, ids, layout) {
   let ctx;
 
   if (isGrid) {
-    // 2x2 grid layout
-    const CELL = 190, PAD = 8, HEADER = 48, LABEL = 60;
-    const totalH = HEADER + (CELL + PAD) * 2 + LABEL;
+    // grid4 = 2x2, burst = 2x3
+    const COLS = 2;
+    const ROWS = isBurst ? 3 : 2;
+    const PAD = 8, HEADER = 48, LABEL = 60;
+    const CELL_W = Math.floor((W - PAD * (COLS + 1)) / COLS);
+    const CELL_H = CELL_W; // square cells
+    const totalH = HEADER + ROWS * (CELL_H + PAD) + PAD + LABEL;
     canvas.width = W; canvas.height = totalH;
     ctx = canvas.getContext('2d');
     ctx.fillStyle = '#111'; ctx.fillRect(0,0,W,totalH);
@@ -1955,30 +1990,28 @@ async function showPostCaptureStrip(ev, ids, layout) {
     ctx.fillStyle = cfg.colors[0];
     ctx.font = 'bold 13px Bebas Neue, cursive';
     ctx.textAlign = 'center';
-    ctx.fillText('TORRICK EVENTS', W/2, 32);
+    ctx.fillText(isBurst ? 'TORRICK EVENTS · BURST' : 'TORRICK EVENTS', W/2, 32);
 
     const loadImg = src => new Promise(res => { const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; });
-    const positions = [
-      {x:PAD, y:HEADER},
-      {x:PAD*2+CELL, y:HEADER},
-      {x:PAD, y:HEADER+CELL+PAD},
-      {x:PAD*2+CELL, y:HEADER+CELL+PAD}
-    ];
-    for (let i = 0; i < Math.min(toUse.length, 4); i++) {
+    for (let i = 0; i < Math.min(toUse.length, COLS * ROWS); i++) {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const x = PAD + col * (CELL_W + PAD);
+      const y = HEADER + PAD + row * (CELL_H + PAD);
       if (mediaBlobs[toUse[i].id]) {
         const img = await loadImg(mediaBlobs[toUse[i].id]);
         if (img) {
-          const srcAR = img.width/img.height, dstAR = CELL/CELL;
+          const srcAR = img.width/img.height;
           let sx=0,sy=0,sw=img.width,sh=img.height;
-          if (srcAR>dstAR){sw=img.height*dstAR;sx=(img.width-sw)/2;}
-          else{sh=img.width/dstAR;sy=(img.height-sh)/2;}
-          ctx.drawImage(img,sx,sy,sw,sh,positions[i].x,positions[i].y,CELL,CELL);
+          if (srcAR>1){sw=img.height;sx=(img.width-sw)/2;}
+          else{sh=img.width;sy=(img.height-sh)/2;}
+          ctx.drawImage(img,sx,sy,sw,sh,x,y,CELL_W,CELL_H);
         }
       }
       ctx.strokeStyle=cfg.colors[0]; ctx.lineWidth=1.5;
-      ctx.strokeRect(positions[i].x,positions[i].y,CELL,CELL);
+      ctx.strokeRect(x,y,CELL_W,CELL_H);
     }
-    const labelY = HEADER+(CELL+PAD)*2+30;
+    const labelY = HEADER + PAD + ROWS*(CELL_H+PAD) + 28;
     ctx.fillStyle=cfg.colors[0]; ctx.font=`italic 20px Playfair Display,serif`; ctx.textAlign='center';
     ctx.fillText(ev.name, W/2, labelY);
     if (ev.subtext){ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='11px DM Sans,sans-serif';ctx.fillText(ev.subtext,W/2,labelY+20);}
@@ -1998,7 +2031,7 @@ async function showPostCaptureStrip(ev, ids, layout) {
     ctx.fillStyle=cfg.colors[0]; ctx.fillRect(0,0,W,3);
     ctx.fillStyle=cfg.colors[0];
     ctx.font='bold 13px Bebas Neue,cursive'; ctx.textAlign='center';
-    ctx.fillText('TORRICK EVENTS',W/2,32);
+    ctx.fillText(isGlam ? 'TORRICK EVENTS · GLAM' : 'TORRICK EVENTS',W/2,32);
 
     const loadImg = src => new Promise(res=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});
     let y = HEADER_H;
