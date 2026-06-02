@@ -17,6 +17,7 @@
     justify-content: center;
     padding: 24px;
     font-family: 'DM Sans', sans-serif;
+    color: #faf7f2;
   }
   .card {
     background: #1e1608;
@@ -27,84 +28,40 @@
     max-width: 420px;
     text-align: center;
   }
-  .brand {
-    font-size: 10px;
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    color: #C9A84C;
-    margin-bottom: 6px;
-  }
-  .divider {
-    width: 50px; height: 1px;
-    background: linear-gradient(90deg, transparent, #C9A84C, transparent);
-    margin: 10px auto 16px;
-  }
-  .title {
-    font-family: 'Playfair Display', serif;
-    font-style: italic;
-    font-size: 24px;
-    color: #e8d5a3;
-    margin-bottom: 4px;
-  }
-  .event-name {
-    font-size: 13px;
-    color: rgba(255,255,255,0.5);
-    margin-bottom: 20px;
-  }
-  #photo-wrap { margin-bottom: 20px; }
-  #photo-wrap img {
-    width: 100%;
-    border-radius: 10px;
-    border: 1px solid rgba(201,168,76,0.2);
-    display: block;
-  }
+  .brand { font-size:10px; letter-spacing:6px; text-transform:uppercase; color:#C9A84C; margin-bottom:6px; }
+  .divider { width:50px; height:1px; background:linear-gradient(90deg,transparent,#C9A84C,transparent); margin:10px auto 16px; }
+  .title { font-family:'Playfair Display',serif; font-style:italic; font-size:24px; color:#e8d5a3; margin-bottom:4px; }
+  .event-name { font-size:13px; color:rgba(255,255,255,0.5); margin-bottom:20px; }
+  #media-wrap { margin-bottom:20px; }
+  #media-wrap img, #media-wrap video { width:100%; border-radius:10px; border:1px solid rgba(201,168,76,0.2); display:block; }
   .save-btn {
-    display: block;
-    width: 100%;
-    padding: 16px;
-    background: linear-gradient(135deg, #8B6914, #C9A84C, #8B6914);
-    color: #000;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    text-decoration: none;
-    margin-bottom: 10px;
+    display:block; width:100%; padding:16px;
+    background:linear-gradient(135deg,#8B6914,#C9A84C,#8B6914);
+    color:#000; font-family:'DM Sans',sans-serif; font-size:11px;
+    font-weight:600; letter-spacing:4px; text-transform:uppercase;
+    border:none; border-radius:6px; cursor:pointer;
+    text-decoration:none; margin-bottom:12px;
   }
-  .footer {
-    margin-top: 20px;
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: rgba(255,255,255,0.25);
-    text-transform: uppercase;
+  .ios-tip {
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius:8px; padding:14px 16px;
+    font-size:13px; color:rgba(255,255,255,0.7);
+    line-height:1.6; margin-bottom:12px; text-align:left;
   }
-  .loading {
-    font-family: 'Playfair Display', serif;
-    font-style: italic;
-    font-size: 20px;
-    color: #C9A84C;
-    padding: 40px;
-    text-align: center;
-  }
-  .error {
-    color: #ff8080;
-    font-size: 14px;
-    padding: 20px;
-    text-align: center;
-  }
+  .ios-tip strong { color:#C9A84C; }
+  .footer { margin-top:16px; font-size:10px; letter-spacing:2px; color:rgba(255,255,255,0.2); text-transform:uppercase; }
+  .loading { font-family:'Playfair Display',serif; font-style:italic; font-size:20px; color:#C9A84C; padding:40px; text-align:center; }
+  .error { color:#ff8080; font-size:14px; padding:20px; text-align:center; }
 </style>
 </head>
 <body>
 <div class="card">
   <div class="brand">Torrick Events</div>
   <div class="divider"></div>
-  <div class="title">Your Photo</div>
+  <div class="title" id="page-title">Your Photo</div>
   <div class="event-name" id="event-name"></div>
-  <div id="photo-wrap"><div class="loading">Loading your photo…</div></div>
+  <div id="media-wrap"><div class="loading">Loading…</div></div>
   <div id="actions"></div>
   <div class="footer">Torrick Events · Photo Booth Studio</div>
 </div>
@@ -113,43 +70,62 @@
 async function loadPhoto() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id');
-  const wrap = document.getElementById('photo-wrap');
+  const wrap = document.getElementById('media-wrap');
   const actions = document.getElementById('actions');
   const eventNameEl = document.getElementById('event-name');
+  const pageTitle = document.getElementById('page-title');
 
-  if (!id) {
-    wrap.innerHTML = '<div class="error">No photo ID found.</div>';
-    return;
-  }
+  if (!id) { wrap.innerHTML = '<div class="error">No photo ID found.</div>'; return; }
 
   try {
     const res = await fetch(`/.netlify/functions/get-photo?id=${id}`);
     const data = await res.json();
-
     if (!res.ok || !data.photoUrl) {
       wrap.innerHTML = '<div class="error">Photo not found or expired.</div>';
       return;
     }
 
     eventNameEl.textContent = data.eventName || '';
+    const url = data.photoUrl;
 
-    // Display photo
-    const img = document.createElement('img');
-    img.src = data.photoUrl;
-    img.alt = 'Your photo from ' + (data.eventName || 'Torrick Events');
-    wrap.innerHTML = '';
-    wrap.appendChild(img);
+    // Detect if video/gif based on URL
+    const isVideo = url.includes('/video/upload/') || url.match(/\.(webm|mp4|mov)(\?|$)/i);
 
-    // Save button
-    const saveBtn = document.createElement('a');
-    saveBtn.href = data.photoUrl;
-    saveBtn.download = 'torrick-events-photo.jpg';
-    saveBtn.className = 'save-btn';
-    saveBtn.textContent = '⬇ Save Photo to Camera Roll';
-    actions.appendChild(saveBtn);
+    if (isVideo) {
+      pageTitle.textContent = 'Your Video';
+      const vid = document.createElement('video');
+      vid.src = url; vid.autoplay = true; vid.loop = true;
+      vid.muted = false; vid.playsinline = true; vid.controls = true;
+      wrap.innerHTML = ''; wrap.appendChild(vid);
+
+      // iOS tip for saving video
+      actions.innerHTML = `
+        <div class="ios-tip">
+          <strong>To save to your Camera Roll:</strong><br>
+          1. Tap and hold the video above<br>
+          2. Tap <strong>"Save to Photos"</strong><br><br>
+          Or tap the share icon and choose <strong>Save Video</strong>
+        </div>
+      `;
+    } else {
+      pageTitle.textContent = 'Your Photo';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Your photo from ' + (data.eventName || 'Torrick Events');
+      wrap.innerHTML = ''; wrap.appendChild(img);
+
+      // Photo — try download link, with iOS fallback tip
+      actions.innerHTML = `
+        <a href="${url}" download="torrick-events-photo.jpg" class="save-btn">⬇ Save Photo to Camera Roll</a>
+        <div class="ios-tip" style="font-size:12px">
+          <strong>On iPhone:</strong> If the button doesn't save automatically,<br>
+          tap and hold the photo above → <strong>"Add to Photos"</strong>
+        </div>
+      `;
+    }
 
   } catch(e) {
-    wrap.innerHTML = '<div class="error">Could not load photo. Please try again.</div>';
+    wrap.innerHTML = '<div class="error">Could not load. Please try again.</div>';
   }
 }
 
