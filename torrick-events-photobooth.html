@@ -1752,43 +1752,71 @@ function startCountdown(n, cb) {
 function resetAnim(el) { el.style.animation='none'; void el.offsetWidth; el.style.animation=''; }
 function doGIF() {
   const vid = document.getElementById('booth-video');
-  const GIF_DURATION = 2500;
-  const FPS = 12;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.min(vid.videoWidth || 640, 640);
-  canvas.height = Math.min(vid.videoHeight || 480, 480);
-  const ctx = canvas.getContext('2d');
+  const CAPTURE_DURATION = 1500; // capture 1.5 sec forward
+  const FPS = 15;
+  const W = Math.min(vid.videoWidth || 640, 640);
+  const H = Math.min(vid.videoHeight || 480, 480);
   const prog = document.getElementById('capture-progress');
   const bar = document.getElementById('prog-bar');
-  prog.querySelector('.prog-label').textContent = 'Recording GIF';
+  prog.querySelector('.prog-label').textContent = 'Recording Boomerang';
   prog.classList.add('show');
   document.getElementById('shutter').classList.add('recording');
 
-  const stream = canvas.captureStream(FPS);
-  const mimes = ['video/webm;codecs=vp8','video/webm','video/mp4'];
-  let mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || '';
-  const mr = new MediaRecorder(stream, mime ? {mimeType:mime} : {});
-  const chunks = [];
-  mr.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
-  mr.onstop = () => {
-    prog.classList.remove('show');
-    document.getElementById('shutter').classList.remove('recording');
-    const blob = new Blob(chunks, {type: mime || 'video/webm'});
-    saveCapture(blob, 'gif', mime || 'video/webm');
-    isCapturing = false;
-    clearInterval(gifInterval);
-  };
+  // Step 1: capture frames
+  const frames = [];
+  const captureCanvas = document.createElement('canvas');
+  captureCanvas.width = W; captureCanvas.height = H;
+  const captureCtx = captureCanvas.getContext('2d');
 
   const start = Date.now();
-  gifInterval = setInterval(() => {
+  const captureInterval = setInterval(() => {
     const elapsed = Date.now() - start;
-    bar.style.width = Math.min(100, (elapsed/GIF_DURATION)*100) + '%';
-    ctx.save(); ctx.scale(-1,1); ctx.drawImage(vid,-canvas.width,0,canvas.width,canvas.height); ctx.restore();
-    stampWatermark(ctx, canvas.width, canvas.height);
-  }, 1000/FPS);
+    bar.style.width = Math.min(50, (elapsed / CAPTURE_DURATION) * 50) + '%';
+    captureCtx.save(); captureCtx.scale(-1,1); captureCtx.drawImage(vid,-W,0,W,H); captureCtx.restore();
+    stampWatermark(captureCtx, W, H);
+    frames.push(captureCtx.getImageData(0, 0, W, H));
+  }, 1000 / FPS);
 
-  mr.start();
-  setTimeout(() => { if(mr.state!=='inactive') mr.stop(); }, GIF_DURATION);
+  setTimeout(() => {
+    clearInterval(captureInterval);
+
+    // Step 2: build boomerang = forward + reverse frames
+    const boomerangFrames = [...frames, ...[...frames].reverse()];
+
+    // Step 3: play boomerang frames onto output canvas and record
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = W; outputCanvas.height = H;
+    const outputCtx = outputCanvas.getContext('2d');
+
+    const stream = outputCanvas.captureStream(FPS);
+    const mimes = ['video/webm;codecs=vp8','video/webm','video/mp4'];
+    let mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+    const mr = new MediaRecorder(stream, mime ? {mimeType:mime} : {});
+    const chunks = [];
+    mr.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+    mr.onstop = () => {
+      prog.classList.remove('show');
+      document.getElementById('shutter').classList.remove('recording');
+      bar.style.width = '0%';
+      const blob = new Blob(chunks, {type: mime || 'video/webm'});
+      saveCapture(blob, 'gif', mime || 'video/webm');
+      isCapturing = false;
+    };
+
+    mr.start();
+    let frameIndex = 0;
+    const playInterval = setInterval(() => {
+      const pct = 50 + (frameIndex / boomerangFrames.length) * 50;
+      bar.style.width = Math.min(100, pct) + '%';
+      outputCtx.putImageData(boomerangFrames[frameIndex], 0, 0);
+      frameIndex++;
+      if (frameIndex >= boomerangFrames.length) {
+        clearInterval(playInterval);
+        setTimeout(() => { if(mr.state!=='inactive') mr.stop(); }, 100);
+      }
+    }, 1000 / FPS);
+
+  }, CAPTURE_DURATION);
 }
 
 // ─── VIDEO ───
