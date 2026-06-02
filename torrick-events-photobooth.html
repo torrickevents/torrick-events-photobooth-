@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Torrick Events PhotoBooth</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=Righteous&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   TORRICK EVENTS — CSS FOUNDATION
+═══════════════════════════════════════════ */
+:root {
+  --bg: #0d0d0d;
+  --surface: #161616;
+  --border: rgba(255,255,255,0.08);
+  --text: #f0f0f0;
+  --muted: rgba(255,255,255,0.4);
+  --accent: #C9A84C;
+  --accent2: #e8d5a3;
+  --font-display: 'Playfair Display', serif;
+  --font-ui: 'DM Sans', sans-serif;
+  --font-fun: 'Righteous', cursive;
+  --font-bold: 'Bebas Neue', cursive;
+  --radius: 10px;
+  --transition: 0.22s cubic-bezier(.4,0,.2,1);
+}
+
+/* THEME VARIABLES — overridden per event */
+.theme-wedding    { --t-bg:#1a1209; --t-accent:#C9A84C; --t-accent2:#f2e0dd; --t-text:#faf7f2; --t-frame:#C9A84C; --t-overlay:rgba(201,168,76,0.13); --t-font:'Playfair Display',serif; --t-strip-bg:linear-gradient(180deg,#1a1209,#2d1f0a); }
+.theme-neon-bday  { --t-bg:#0a001a; --t-accent:#ff2dfc; --t-accent2:#00f5ff; --t-text:#ffffff; --t-frame:#ff2dfc; --t-overlay:rgba(255,45,252,0.1); --t-font:'Righteous',cursive; --t-strip-bg:linear-gradient(180deg,#0a001a,#1a004a); }
+.theme-garden     { --t-bg:#0d1a0e; --t-accent:#7ec87e; --t-accent2:#f7e5b2; --t-text:#eaf5ea; --t-frame:#7ec87e; --t-overlay:rgba(126,200,126,0.1); --t-font:'Playfair Display',serif; --t-strip-bg:linear-gradient(180deg,#0d1a0e,#1a2e1a); }
+.theme-retro      { --t-bg:#1a0800; --t-accent:#ff6b1a; --t-accent2:#ffe066; --t-text:#fff8f0; --t-frame:#ff6b1a; --t-overlay:rgba(255,107,26,0.13); --t-font:'Bebas Neue',cursive; --t-strip-bg:linear-gradient(180deg,#1a0800,#2e1200); }
+.theme-boho       { --t-bg:#1a1005; --t-accent:#c4956a; --t-accent2:#e8cfa0; --t-text:#f5efe6; --t-frame:#c4956a; --t-overlay:rgba(196,149,106,0.13); --t-font:'Playfair Display',serif; --t-strip-bg:linear-gradient(180deg,#1a1005,#2e1a08); }
+.theme-glam       { --t-bg:#0d0010; --t-accent:#d966ff; --t-accent2:#ffe6ff; --t-text:#fff0ff; --t-frame:#d966ff; --t-overlay:rgba(217,102,255,0.12); --t-font:'Playfair Display',serif; --t-strip-bg:linear-gradient(180deg,#0d0010,#1a0028); }
+.theme-corporate  { --t-bg:#0a0f1a; --t-accent:#4a9eff; --t-accent2:#e0ecff; --t-text:#f0f4ff; --t-frame:#4a9eff; --t-overlay:rgba(74,158,255,0.1); --t-font:'DM Sans',sans-serif; --t-strip-bg:linear-gradient(180deg,#0a0f1a,#0f1a2e); }
+.theme-sweet16    { --t-bg:#1a0010; --t-accent:#ff69b4; --t-accent2:#ffe6f3; --t-text:#fff0f8; --t-frame:#ff69b4; --t-overlay:rgba(255,105,180,0.12); --t-font:'Righteous',cursive; --t-strip-bg:linear-gradient(180deg,#1a0010,#2e0028); }
+
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ═══ PAGES ═══ */
+.page { display:none; flex-direction:column; height:100dvh; width:100%; overflow:hidden; }
+.page.active { display:flex; }
+.page.scroll { overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+/* ═══════════════════════════════════════════
+   LANDING PAGE
+═══════════════════════════════════════════ */
+#pg-landing {
+  background: radial-gradient(ellipse 100% 80% at 50% 0%, rgba(201,168,76,0.15) 0%, transparent 60%), #0d0d0d;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 40px 24px;
+  position: relative;
+  overflow: hidden;
+}
+#pg-landing::before {
+  content:'';
+  position:absolute;
+  width:600px; height:600px;
+  border-radius:50%;
+  background: radial-gradient(circle, rgba(201,168,76,0.07) 0%, transparent 70%);
+  top:-200px; left:50%; transform:translateX(-50%);
+  pointer-events:none;
+}
+.brand-logo {
+  font-family: var(--font-bold);
+  font-size: clamp(36px, 7vw, 60px);
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, #C9A84C, #f0d98c, #C9A84C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align:center;
+  animation: fadeUp 0.8s ease both;
+}
+.brand-sub {
+  font-size: 11px;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.7;
+  margin-top: 4px;
+  text-align:center;
+  animation: fadeUp 0.8s 0.15s ease both;
+}
+.landing-divider {
+  width:80px; height:1px;
+  background: linear-gradient(90deg,transparent,var(--accent),transparent);
+  margin: 28px auto;
+  animation: fadeUp 0.8s 0.25s ease both;
+}
+.landing-actions {
+  display:flex; flex-direction:column; gap:14px; width:100%; max-width:340px;
+  animation: fadeUp 0.8s 0.35s ease both;
+}
+.btn-primary {
+  padding: 18px 32px;
+  background: linear-gradient(135deg,#8B6914,var(--accent),#8B6914);
+  border: none;
+  color: #0d0d0d;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(201,168,76,0.3);
+  transition: var(--transition);
+  width: 100%;
+}
+.btn-primary:active { transform:scale(0.97); }
+.btn-secondary {
+  padding: 16px 32px;
+  background: transparent;
+  border: 1px solid rgba(201,168,76,0.35);
+  color: var(--accent2);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+  width: 100%;
+}
+.btn-secondary:hover { border-color:var(--accent); background:rgba(201,168,76,0.07); }
+.btn-secondary:active { transform:scale(0.97); }
+.landing-event-select {
+  margin-top:8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%;
+  max-width: 340px;
+  animation: fadeUp 0.8s 0.45s ease both;
+}
+.select-label { font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+select {
+  width:100%; padding:12px 14px;
+  background:#1e1e1e; border:1px solid rgba(255,255,255,0.12);
+  color:var(--text); border-radius:6px;
+  font-family:var(--font-ui); font-size:15px;
+  appearance:none; cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C9A84C' fill='none' stroke-width='2'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+}
+select:focus { outline:none; border-color:var(--accent); }
+.event-quick-info {
+  margin-top:10px; font-size:12px; color:var(--muted);
+  min-height:18px;
+}
+
+/* ═══════════════════════════════════════════
+   ADMIN — EVENT MANAGER
+═══════════════════════════════════════════ */
+#pg-admin {
+  background: #0d0d0d;
+}
+.admin-header {
+  padding: 24px 20px 16px;
+  background: rgba(13,13,13,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:10;
+  flex-shrink:0;
+}
+.admin-title { font-family:var(--font-display); font-size:24px; font-style:italic; color:var(--accent2); }
+.btn-small {
+  padding:8px 18px;
+  background:transparent;
+  border:1px solid rgba(201,168,76,0.35);
+  color:var(--accent);
+  font-size:10px; letter-spacing:3px; text-transform:uppercase;
+  border-radius:4px; cursor:pointer; font-family:var(--font-ui);
+  transition:var(--transition);
+}
+.btn-small:hover { background:rgba(201,168,76,0.1); }
+.btn-small.danger { border-color:rgba(255,80,80,0.35); color:#ff8080; }
+.btn-small.danger:hover { background:rgba(255,80,80,0.1); }
+.btn-small.success { background:var(--accent); color:#0d0d0d; border-color:var(--accent); font-weight:600; }
+
+.events-list {
+  padding:16px;
+  display:flex; flex-direction:column; gap:12px;
+}
+.event-card {
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:18px;
+  cursor:pointer;
+  transition:var(--transition);
+  position:relative;
+  overflow:hidden;
+}
+.event-card::before {
+  content:'';
+  position:absolute; left:0; top:0; bottom:0; width:3px;
+  background:var(--card-accent, var(--accent));
+}
+.event-card:hover { border-color:rgba(201,168,76,0.25); transform:translateY(-1px); }
+.event-card-name { font-family:var(--font-display); font-size:20px; font-style:italic; color:var(--text); }
+.event-card-meta { font-size:12px; color:var(--muted); margin-top:4px; }
+.event-card-theme-badge {
+  display:inline-block; margin-top:8px;
+  padding:3px 10px; border-radius:20px;
+  font-size:10px; letter-spacing:2px; text-transform:uppercase;
+  background:rgba(255,255,255,0.07); color:var(--muted);
+}
+.event-card-actions { display:flex; gap:8px; margin-top:14px; }
+
+.empty-state {
+  text-align:center; padding:60px 20px;
+  color:var(--muted); font-family:var(--font-display); font-style:italic; font-size:20px;
+}
+
+/* ═══════════════════════════════════════════
+   EVENT FORM (Create / Edit)
+═══════════════════════════════════════════ */
+#pg-form {
+  background:#0d0d0d;
+}
+.form-header {
+  padding:24px 20px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:14px;
+  flex-shrink:0;
+}
+.form-title { font-family:var(--font-display); font-size:22px; font-style:italic; color:var(--accent2); }
+.form-body { padding:20px; display:flex; flex-direction:column; gap:20px; }
+
+.field { display:flex; flex-direction:column; gap:6px; }
+.field label { font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--accent); opacity:0.8; }
+.field input[type=text], .field input[type=date], .field input[type=tel], .field textarea {
+  background:#1e1e1e;
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:6px;
+  padding:13px 16px;
+  color:var(--text);
+  font-family:var(--font-ui);
+  font-size:16px;
+  width:100%;
+  outline:none;
+  transition:border-color 0.2s;
+}
+.field input:focus, .field textarea:focus { border-color:var(--accent); }
+.field textarea { resize:none; height:80px; }
+
+/* Theme picker */
+.theme-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.theme-option {
+  border:2px solid transparent;
+  border-radius:8px;
+  padding:14px 10px;
+  cursor:pointer;
+  text-align:center;
+  transition:var(--transition);
+  position:relative;
+  overflow:hidden;
+}
+.theme-option .t-name { font-size:12px; font-weight:500; letter-spacing:1px; position:relative; z-index:1; }
+.theme-option .t-emoji { font-size:24px; margin-bottom:4px; display:block; position:relative; z-index:1; }
+.theme-option.selected { border-color:currentColor; }
+
+.t-wedding   { background:linear-gradient(135deg,#2d1f0a,#1a1209); color:#C9A84C; }
+.t-neon-bday { background:linear-gradient(135deg,#1a004a,#0a001a); color:#ff2dfc; }
+.t-garden    { background:linear-gradient(135deg,#1a2e1a,#0d1a0e); color:#7ec87e; }
+.t-retro     { background:linear-gradient(135deg,#2e1200,#1a0800); color:#ff6b1a; }
+.t-boho      { background:linear-gradient(135deg,#2e1a08,#1a1005); color:#c4956a; }
+.t-glam      { background:linear-gradient(135deg,#1a0028,#0d0010); color:#d966ff; }
+.t-corporate { background:linear-gradient(135deg,#0f1a2e,#0a0f1a); color:#4a9eff; }
+.t-sweet16   { background:linear-gradient(135deg,#2e0028,#1a0010); color:#ff69b4; }
+
+/* Strip layout picker */
+.layout-grid { display:flex; gap:10px; flex-wrap:wrap; }
+.layout-option {
+  border:2px solid rgba(255,255,255,0.1);
+  border-radius:6px; padding:10px 14px; cursor:pointer;
+  font-size:11px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--muted); transition:var(--transition); text-align:center;
+}
+.layout-option.selected { border-color:var(--accent); color:var(--accent); background:rgba(201,168,76,0.08); }
+
+.save-row { padding:20px; padding-top:4px; }
+
+/* ═══════════════════════════════════════════
+   BOOTH SCREEN
+═══════════════════════════════════════════ */
+#pg-booth {
+  position:relative;
+  background:#000;
+  overflow:hidden;
+}
+#booth-video-wrap { position:absolute; inset:0; }
+#booth-video {
+  width:100%; height:100%;
+  object-fit:cover;
+  transform:scaleX(-1);
+}
+
+/* Theme overlay */
+.booth-overlay {
+  position:absolute; inset:0; z-index:4; pointer-events:none;
+  transition:background 0.5s;
+}
+/* Animated particles */
+.particle-layer { position:absolute; inset:0; z-index:5; pointer-events:none; overflow:hidden; }
+.particle { position:absolute; top:-30px; animation:fallParticle linear infinite; pointer-events:none; }
+
+/* Frame */
+.booth-frame {
+  position:absolute; inset:0; z-index:6; pointer-events:none;
+}
+.f-corner { position:absolute; width:50px; height:50px; }
+.f-tl { top:12px; left:12px; border-top:2px solid var(--t-frame,#C9A84C); border-left:2px solid var(--t-frame,#C9A84C); }
+.f-tr { top:12px; right:12px; border-top:2px solid var(--t-frame,#C9A84C); border-right:2px solid var(--t-frame,#C9A84C); }
+.f-bl { bottom:88px; left:12px; border-bottom:2px solid var(--t-frame,#C9A84C); border-left:2px solid var(--t-frame,#C9A84C); }
+.f-br { bottom:88px; right:12px; border-bottom:2px solid var(--t-frame,#C9A84C); border-right:2px solid var(--t-frame,#C9A84C); }
+
+.booth-event-label {
+  position:absolute; top:0; left:0; right:0; z-index:7; pointer-events:none;
+  text-align:center; padding:18px 20px 10px;
+  font-size:18px; font-style:italic; letter-spacing:2px;
+  color:rgba(255,255,255,0.8);
+  text-shadow:0 1px 8px rgba(0,0,0,0.6);
+}
+
+/* Mode pills */
+.booth-mode-row {
+  position:absolute; top:14px; right:14px; z-index:20;
+  display:flex; gap:6px;
+}
+.mode-pill {
+  padding:6px 14px; border-radius:20px;
+  font-size:10px; letter-spacing:2px; text-transform:uppercase;
+  border:1px solid rgba(255,255,255,0.2);
+  background:rgba(0,0,0,0.5);
+  color:rgba(255,255,255,0.7);
+  cursor:pointer; backdrop-filter:blur(6px);
+  transition:var(--transition);
+}
+.mode-pill.active { background:var(--t-frame,#C9A84C); color:#000; border-color:var(--t-frame,#C9A84C); font-weight:600; }
+
+/* Controls bar */
+.booth-controls {
+  position:absolute; bottom:0; left:0; right:0; z-index:20;
+  height:88px;
+  background:linear-gradient(0deg,rgba(0,0,0,0.85) 0%,transparent 100%);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 24px 12px;
+}
+.booth-ctrl-btn {
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.15);
+  color:rgba(255,255,255,0.8);
+  padding:8px 16px; border-radius:4px;
+  font-size:10px; letter-spacing:3px; text-transform:uppercase;
+  cursor:pointer; backdrop-filter:blur(4px);
+  font-family:var(--font-ui);
+  transition:var(--transition);
+}
+.booth-ctrl-btn:active { background:rgba(255,255,255,0.15); }
+
+.shutter {
+  width:70px; height:70px; border-radius:50%;
+  background:#fff; border:4px solid var(--t-frame,#C9A84C);
+  box-shadow:0 0 0 3px rgba(255,255,255,0.15), 0 4px 20px rgba(0,0,0,0.5);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; position:relative;
+  transition:transform 0.15s, box-shadow 0.15s;
+  flex-shrink:0;
+}
+.shutter:active { transform:scale(0.93); }
+.shutter.recording { background:#e05555; border-color:#ff9999; animation:shutterPulse 0.6s infinite; }
+.shutter-mode-label {
+  position:absolute; top:-22px; left:50%; transform:translateX(-50%);
+  font-size:9px; letter-spacing:3px; text-transform:uppercase;
+  color:rgba(255,255,255,0.8); white-space:nowrap;
+  text-shadow:0 1px 4px rgba(0,0,0,0.8);
+}
+.shutter-icon { font-size:26px; }
+
+/* Countdown */
+#booth-countdown {
+  position:absolute; inset:0; z-index:30;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.4);
+}
+#booth-countdown.show { display:flex; }
+.cd-num {
+  font-family:var(--font-bold);
+  font-size:200px; color:#fff;
+  text-shadow:0 0 80px rgba(255,255,255,0.4);
+  animation:countAnim 1s ease forwards;
+  line-height:1;
+}
+
+/* Flash */
+#booth-flash {
+  position:absolute; inset:0; z-index:40; background:#fff;
+  opacity:0; pointer-events:none; transition:opacity 0.06s;
+}
+#booth-flash.on { opacity:1; }
+
+/* GIF / Video progress */
+#capture-progress {
+  position:absolute; top:72px; left:50%; transform:translateX(-50%);
+  z-index:20; display:none; flex-direction:column; align-items:center; gap:6px;
+}
+#capture-progress.show { display:flex; }
+.prog-bar-wrap { width:180px; height:3px; background:rgba(255,255,255,0.2); border-radius:2px; overflow:hidden; }
+.prog-bar { height:100%; background:var(--t-frame,#C9A84C); width:0%; transition:width 0.1s; }
+.prog-label { font-size:9px; letter-spacing:4px; text-transform:uppercase; color:rgba(255,255,255,0.8); }
+
+/* Loading */
+#booth-loading {
+  position:absolute; inset:0; z-index:50; background:#000;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:12px;
+}
+.loading-ring {
+  width:40px; height:40px; border:2px solid rgba(201,168,76,0.2);
+  border-top-color:var(--accent); border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+.loading-text { font-family:var(--font-display); font-size:18px; font-style:italic; color:var(--accent); }
+
+/* ═══════════════════════════════════════════
+   GALLERY SCREEN
+═══════════════════════════════════════════ */
+#pg-gallery {
+  background:#0d0d0d;
+}
+.gallery-header {
+  padding:22px 20px 14px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(13,13,13,0.95); backdrop-filter:blur(12px);
+  flex-shrink:0;
+}
+.gallery-title { font-family:var(--font-display); font-size:24px; font-style:italic; color:var(--accent2); }
+.gallery-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:10px; padding:14px;
+}
+.gal-item {
+  position:relative; border-radius:8px; overflow:hidden;
+  border:1px solid rgba(255,255,255,0.07);
+  cursor:pointer; aspect-ratio:3/4;
+  transition:var(--transition);
+}
+.gal-item:active { transform:scale(0.97); }
+.gal-item img, .gal-item video { width:100%; height:100%; object-fit:cover; }
+.gal-badge {
+  position:absolute; top:8px; left:8px;
+  background:rgba(0,0,0,0.7); color:#fff;
+  font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  padding:3px 8px; border-radius:3px; backdrop-filter:blur(4px);
+}
+.gal-delete {
+  position:absolute; top:8px; right:8px;
+  background:rgba(255,60,60,0.8); color:#fff;
+  border:none; border-radius:50%; width:28px; height:28px;
+  font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+
+/* ═══════════════════════════════════════════
+   SHARE / VIEWER SCREEN
+═══════════════════════════════════════════ */
+#pg-share {
+  background: #0d0d0d;
+  align-items:center; justify-content:center;
+}
+.share-card {
+  background:var(--surface);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px;
+  padding:28px 24px;
+  width:100%; max-width:440px;
+  margin:20px;
+  text-align:center;
+  position:relative;
+}
+.share-brand {
+  font-family:var(--font-bold);
+  font-size:16px; letter-spacing:5px; text-transform:uppercase;
+  color:var(--accent); margin-bottom:4px;
+}
+.share-message {
+  font-family:var(--font-display);
+  font-size:22px; font-style:italic;
+  color:var(--text); line-height:1.4;
+  margin-bottom:6px;
+}
+.share-event-name {
+  font-size:13px; color:var(--muted); letter-spacing:1px; margin-bottom:20px;
+}
+#share-media-wrap { margin-bottom:20px; }
+#share-media-wrap img, #share-media-wrap video {
+  max-width:100%; max-height:280px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.07);
+}
+.share-actions { display:flex; flex-direction:column; gap:10px; }
+.share-btn {
+  padding:14px 24px;
+  border-radius:6px; cursor:pointer;
+  font-family:var(--font-ui); font-size:11px;
+  letter-spacing:4px; text-transform:uppercase;
+  font-weight:500; transition:var(--transition);
+}
+.share-btn.primary { background:var(--accent); color:#000; border:none; }
+.share-btn.secondary { background:transparent; border:1px solid rgba(255,255,255,0.15); color:var(--text); }
+.share-btn:active { transform:scale(0.97); }
+.close-share {
+  position:absolute; top:14px; right:14px;
+  background:none; border:none; color:var(--muted);
+  font-size:22px; cursor:pointer; line-height:1;
+}
+
+/* ═══════════════════════════════════════════
+   STRIP PREVIEW (canvas output)
+═══════════════════════════════════════════ */
+#pg-strip {
+  background:#0d0d0d;
+  align-items:center; justify-content:center;
+}
+.strip-preview-wrap {
+  display:flex; flex-direction:column; align-items:center;
+  gap:16px; padding:20px; width:100%;
+}
+.strip-actions { display:flex; gap:10px; width:100%; max-width:360px; }
+#strip-canvas { max-width:280px; width:100%; border-radius:8px; box-shadow:0 8px 40px rgba(0,0,0,0.6); }
+
+/* ═══════════════════════════════════════════
+   SHARED UTILITIES / ANIMATIONS
+═══════════════════════════════════════════ */
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes countAnim {
+  0%{transform:scale(1.6);opacity:0}
+  25%{transform:scale(1);opacity:1}
+  80%{transform:scale(1);opacity:1}
+  100%{transform:scale(0.6);opacity:0}
+}
+@keyframes shutterPulse {
+  0%,100%{box-shadow:0 0 0 3px rgba(255,80,80,0.3),0 4px 20px rgba(0,0,0,0.5)}
+  50%{box-shadow:0 0 0 10px rgba(255,80,80,0.1),0 4px 20px rgba(0,0,0,0.5)}
+}
+@keyframes fallParticle {
+  0%{transform:translateY(-30px) rotate(0deg);opacity:0}
+  10%{opacity:0.7}
+  90%{opacity:0.4}
+  100%{transform:translateY(110vh) rotate(540deg) translateX(40px);opacity:0}
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.3);border-radius:2px}
+
+#share-overlay.show { display:flex !important; }
+#modal-overlay {
+  position:fixed; inset:0; z-index:200;
+  background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
+  display:none; align-items:center; justify-content:center;
+  padding:20px;
+}
+#modal-overlay.show { display:flex; }
+.modal-box {
+  background:#1a1a1a; border:1px solid rgba(255,255,255,0.1);
+  border-radius:14px; padding:28px 24px;
+  width:100%; max-width:400px; text-align:center;
+}
+.modal-box h3 { font-family:var(--font-display); font-size:22px; font-style:italic; color:var(--accent2); margin-bottom:8px; }
+.modal-box p { font-size:14px; color:var(--muted); margin-bottom:20px; line-height:1.5; }
+.modal-actions { display:flex; gap:10px; justify-content:center; }
+
+/* Carrier buttons */
+.carrier-btn {
+  padding:6px 12px; border-radius:4px;
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.7); font-size:11px; font-family:var(--font-ui);
+  cursor:pointer; transition:var(--transition);
+}
+.carrier-btn:hover { background:rgba(201,168,76,0.15); border-color:var(--accent); color:var(--accent); }
+.carrier-btn:active { transform:scale(0.96); }
+
+/* Toast */
+#toast {
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:rgba(201,168,76,0.95); color:#000;
+  padding:10px 24px; border-radius:30px;
+  font-size:12px; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+  opacity:0; pointer-events:none; z-index:300;
+  transition:opacity 0.3s, transform 0.3s;
+  white-space:nowrap;
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════
+     LANDING / SELECT EVENT
+══════════════════════════════ -->
+<div id="pg-landing" class="page active">
+  <div class="brand-logo">TORRICK EVENTS</div>
+  <div class="brand-sub">Photo Booth Studio</div>
+  <div class="landing-divider"></div>
+  <div class="landing-event-select">
+    <div class="select-label">Today's Event</div>
+    <select id="event-select" onchange="onEventSelectChange()">
+      <option value="">— Select an event —</option>
+    </select>
+    <div class="event-quick-info" id="event-quick-info"></div>
+  </div>
+  <div class="landing-actions" style="margin-top:16px">
+    <button class="btn-primary" onclick="launchBooth()">Open Photo Booth</button>
+    <button class="btn-secondary" onclick="showPage('pg-admin')">Manage Events</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     ADMIN — EVENT LIST
+══════════════════════════════ -->
+<div id="pg-admin" class="page scroll">
+  <div class="admin-header">
+    <div class="admin-title">My Events</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-small" onclick="showPage('pg-landing')">← Back</button>
+      <button class="btn-small success" onclick="openForm(null)">+ New Event</button>
+    </div>
+  </div>
+  <div class="events-list" id="events-list"></div>
+</div>
+
+<!-- ══════════════════════════════
+     EVENT FORM (Create/Edit)
+══════════════════════════════ -->
+<div id="pg-form" class="page scroll">
+  <div class="form-header">
+    <button class="btn-small" onclick="showPage('pg-admin')">← Back</button>
+    <div class="form-title" id="form-title">New Event</div>
+  </div>
+  <div class="form-body">
+    <div class="field">
+      <label>Event Name (appears on strips)</label>
+      <input type="text" id="f-name" placeholder="Emily & Max's Wedding" maxlength="50">
+    </div>
+    <div class="field">
+      <label>Event Date</label>
+      <input type="date" id="f-date">
+    </div>
+    <div class="field">
+      <label>Custom Strip Text (optional extra line)</label>
+      <input type="text" id="f-subtext" placeholder="June 1, 2026 · The Grand Hall" maxlength="60">
+    </div>
+    <div class="field">
+      <label>Theme</label>
+      <div class="theme-grid" id="theme-grid">
+        <div class="theme-option t-wedding selected" data-theme="wedding" onclick="selectFormTheme(this)">
+          <span class="t-emoji">💍</span><div class="t-name">Wedding</div>
+        </div>
+        <div class="theme-option t-neon-bday" data-theme="neon-bday" onclick="selectFormTheme(this)">
+          <span class="t-emoji">🎉</span><div class="t-name">Neon Birthday</div>
+        </div>
+        <div class="theme-option t-garden" data-theme="garden" onclick="selectFormTheme(this)">
+          <span class="t-emoji">🌿</span><div class="t-name">Garden Party</div>
+        </div>
+        <div class="theme-option t-retro" data-theme="retro" onclick="selectFormTheme(this)">
+          <span class="t-emoji">🕹️</span><div class="t-name">Retro Arcade</div>
+        </div>
+        <div class="theme-option t-boho" data-theme="boho" onclick="selectFormTheme(this)">
+          <span class="t-emoji">🪶</span><div class="t-name">Boho Chic</div>
+        </div>
+        <div class="theme-option t-glam" data-theme="glam" onclick="selectFormTheme(this)">
+          <span class="t-emoji">✨</span><div class="t-name">Glam Night</div>
+        </div>
+        <div class="theme-option t-corporate" data-theme="corporate" onclick="selectFormTheme(this)">
+          <span class="t-emoji">💼</span><div class="t-name">Corporate</div>
+        </div>
+        <div class="theme-option t-sweet16" data-theme="sweet16" onclick="selectFormTheme(this)">
+          <span class="t-emoji">🎀</span><div class="t-name">Sweet 16</div>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Photo Strip Layout</label>
+      <div class="layout-grid" id="layout-grid">
+        <div class="layout-option selected" data-layout="single" onclick="selectLayout(this)">1 Photo</div>
+        <div class="layout-option" data-layout="strip2" onclick="selectLayout(this)">2-Photo Strip</div>
+        <div class="layout-option" data-layout="strip3" onclick="selectLayout(this)">3-Photo Strip</div>
+        <div class="layout-option" data-layout="strip4" onclick="selectLayout(this)">4-Photo Strip</div>
+        <div class="layout-option" data-layout="grid4" onclick="selectLayout(this)">2×2 Grid</div>
+      </div>
+    </div>
+  </div>
+  <div class="save-row">
+    <button class="btn-primary" onclick="saveEvent()">Save Event</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     BOOTH
+══════════════════════════════ -->
+<div id="pg-booth" class="page">
+  <div id="booth-loading">
+    <div class="loading-ring"></div>
+    <div class="loading-text">Opening Camera…</div>
+  </div>
+
+  <div id="booth-video-wrap">
+    <video id="booth-video" autoplay playsinline muted></video>
+  </div>
+
+  <div class="booth-overlay" id="booth-overlay"></div>
+  <div class="particle-layer" id="particle-layer"></div>
+
+  <div class="booth-frame">
+    <div class="f-corner f-tl"></div>
+    <div class="f-corner f-tr"></div>
+    <div class="f-corner f-bl"></div>
+    <div class="f-corner f-br"></div>
+  </div>
+  <div class="booth-event-label" id="booth-event-label"></div>
+
+  <div class="booth-mode-row">
+    <div class="mode-pill active" data-mode="photo" onclick="setBooth Mode('photo',this)">Photo</div>
+    <div class="mode-pill" data-mode="gif" onclick="setBoothMode('gif',this)">GIF</div>
+    <div class="mode-pill" data-mode="video" onclick="setBoothMode('video',this)">Video</div>
+  </div>
+
+  <div id="booth-countdown"><div class="cd-num" id="cd-num">3</div></div>
+  <div id="booth-flash"></div>
+
+  <div id="capture-progress">
+    <div class="prog-label" id="prog-label">Recording</div>
+    <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+  </div>
+
+  <div class="booth-controls">
+    <button class="booth-ctrl-btn" onclick="exitBooth()">← Exit</button>
+    <div class="shutter" id="shutter" onclick="triggerCapture()">
+      <div class="shutter-mode-label" id="shutter-label">PHOTO</div>
+      <span class="shutter-icon" id="shutter-icon">📸</span>
+    </div>
+    <button class="booth-ctrl-btn" onclick="openGallery()">Gallery</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     GALLERY
+══════════════════════════════ -->
+<div id="pg-gallery" class="page scroll">
+  <div class="gallery-header">
+    <div class="gallery-title">Gallery</div>
+    <button class="btn-small" onclick="showPage('pg-booth')">← Booth</button>
+  </div>
+  <div class="gallery-grid" id="gallery-grid"></div>
+  <div style="height:20px"></div>
+</div>
+
+<!-- ══════════════════════════════
+     SHARE OVERLAY (on top of booth)
+══════════════════════════════ -->
+<div id="share-overlay" style="
+  position:fixed;inset:0;z-index:150;
+  background:rgba(0,0,0,0.84);backdrop-filter:blur(10px);
+  display:none;align-items:center;justify-content:center;
+  padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+">
+  <div class="share-card">
+    <button class="close-share" onclick="closeShareOverlay()">✕</button>
+    <div class="share-brand">Torrick Events</div>
+    <div class="share-message" id="share-message">Thanks for visiting with us!</div>
+    <div class="share-event-name" id="share-event-name"></div>
+    <div id="share-media-wrap" style="margin:12px 0;text-align:center"></div>
+
+    <!-- Email send form -->
+    <div id="send-form" style="margin-top:4px">
+      <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);opacity:0.8;margin-bottom:8px">Send to your phone or email</div>
+      <input id="guest-email" type="email" inputmode="email" placeholder="yourname@email.com or phone@carrier.com"
+        style="width:100%;padding:13px 14px;background:#1e1e1e;border:1px solid rgba(255,255,255,0.12);
+        border-radius:6px;color:#fff;font-size:16px;font-family:var(--font-ui);outline:none;margin-bottom:8px"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+
+      <!-- Carrier shortcut buttons -->
+      <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:6px">Or tap your carrier to text it</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="carrier-btns">
+        <button class="carrier-btn" onclick="fillCarrier('vtext.com')">Verizon</button>
+        <button class="carrier-btn" onclick="fillCarrier('txt.att.net')">AT&T</button>
+        <button class="carrier-btn" onclick="fillCarrier('tmomail.net')">T-Mobile</button>
+        <button class="carrier-btn" onclick="fillCarrier('messaging.sprintpcs.com')">Sprint</button>
+        <button class="carrier-btn" onclick="fillCarrier('mymetropcs.com')">Metro</button>
+        <button class="carrier-btn" onclick="fillCarrier('sms.myboostmobile.com')">Boost</button>
+        <button class="carrier-btn" onclick="fillCarrier('vmobl.com')">Virgin</button>
+        <button class="carrier-btn" onclick="fillCarrier('cricketwireless.net')">Cricket</button>
+      </div>
+
+      <div id="send-status" style="min-height:20px;font-size:12px;text-align:center;color:var(--accent);margin-bottom:8px"></div>
+
+      <div class="share-actions">
+        <button class="share-btn primary" id="send-btn" onclick="sendViaEmail()">✉ Send Photo</button>
+        <button class="share-btn secondary" onclick="downloadCapture()">⬇ Save to Device</button>
+        <button class="share-btn secondary" onclick="closeShareOverlay()">← Back to Booth</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div class="modal-box">
+    <h3 id="modal-title">Are you sure?</h3>
+    <p id="modal-body">This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-small" onclick="closeModal()">Cancel</button>
+      <button class="btn-small danger" id="modal-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════
+     JAVASCRIPT
+══════════════════════════════ -->
+<script>
+// ═══════════════════════════════
+// DATA LAYER (localStorage)
+// ═══════════════════════════════
+const DB = {
+  save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} },
+  load(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
+};
+
+let events = DB.load('te_events', []);
+let captureItems = DB.load('te_captures_meta', []); // {id, type, eventId, eventName, timestamp}
+// Actual media blobs stored separately in memory + IndexedDB
+let mediaBlobs = {}; // id -> blob URL (in-memory, reconstructed from IDB on load)
+
+// IndexedDB for media
+let idb = null;
+function openIDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('TorrickEvents', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('media', {keyPath:'id'});
+    req.onsuccess = e => { idb = e.target.result; res(idb); };
+    req.onerror = () => rej();
+  });
+}
+function idbSave(id, blob) {
+  if (!idb) return;
+  const tx = idb.transaction('media','readwrite');
+  tx.objectStore('media').put({id, blob});
+}
+function idbGet(id) {
+  return new Promise((res) => {
+    if (!idb) return res(null);
+    const tx = idb.transaction('media','readonly');
+    const req = tx.objectStore('media').get(id);
+    req.onsuccess = () => res(req.result ? req.result.blob : null);
+    req.onerror = () => res(null);
+  });
+}
+function idbDelete(id) {
+  if (!idb) return;
+  const tx = idb.transaction('media','readwrite');
+  tx.objectStore('media').delete(id);
+}
+async function loadAllMediaURLs() {
+  for (const item of captureItems) {
+    const blob = await idbGet(item.id);
+    if (blob) mediaBlobs[item.id] = URL.createObjectURL(blob);
+  }
+}
+
+// ═══════════════════════════════
+// THEME CONFIG
+// ═══════════════════════════════
+const THEME_CONFIG = {
+  wedding:    { particles:['✦','✿','❋'], colors:['#C9A84C','#f2e0dd'], frameFont:'Playfair Display', css:'theme-wedding' },
+  'neon-bday':{ particles:['★','✦','◆','●'], colors:['#ff2dfc','#00f5ff'], frameFont:'Righteous', css:'theme-neon-bday' },
+  garden:     { particles:['🌿','🌸','🍃'], colors:['#7ec87e','#f7e5b2'], frameFont:'Playfair Display', css:'theme-garden' },
+  retro:      { particles:['★','◆','▲','■'], colors:['#ff6b1a','#ffe066'], frameFont:'Bebas Neue', css:'theme-retro' },
+  boho:       { particles:['✾','✻','❁'], colors:['#c4956a','#e8cfa0'], frameFont:'Playfair Display', css:'theme-boho' },
+  glam:       { particles:['✦','★','◈'], colors:['#d966ff','#ffe6ff'], frameFont:'Playfair Display', css:'theme-glam' },
+  corporate:  { particles:[], colors:['#4a9eff','#e0ecff'], frameFont:'DM Sans', css:'theme-corporate' },
+  sweet16:    { particles:['♡','✦','★','🌸'], colors:['#ff69b4','#ffe6f3'], frameFont:'Righteous', css:'theme-sweet16' }
+};
+
+// ═══════════════════════════════
+// STATE
+// ═══════════════════════════════
+let activeEventId = null;
+let boothMode = 'photo'; // photo | gif | video
+let videoStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let isCapturing = false;
+let gifFrames = [];
+let gifInterval = null;
+let currentShareItem = null;
+let editingEventId = null;
+let formTheme = 'wedding';
+let formLayout = 'single';
+let stripSourceIds = []; // for building strip
+let pendingDeleteId = null;
+let pendingDeleteType = null; // 'event' | 'capture'
+
+// ═══════════════════════════════
+// PAGE NAVIGATION
+// ═══════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'pg-landing') refreshLandingSelect();
+  if (id === 'pg-admin') renderAdminList();
+}
+
+// ═══════════════════════════════
+// TOAST
+// ═══════════════════════════════
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ═══════════════════════════════
+// MODAL
+// ═══════════════════════════════
+function showModal(title, body, onConfirm) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent = body;
+  document.getElementById('modal-confirm').onclick = () => { closeModal(); onConfirm(); };
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+
+// ═══════════════════════════════
+// LANDING
+// ═══════════════════════════════
+function refreshLandingSelect() {
+  const sel = document.getElementById('event-select');
+  sel.innerHTML = '<option value="">— Select an event —</option>';
+  events.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id; opt.textContent = e.name + (e.date ? ' · ' + formatDate(e.date) : '');
+    sel.appendChild(opt);
+  });
+  if (activeEventId) sel.value = activeEventId;
+  onEventSelectChange();
+}
+
+function onEventSelectChange() {
+  const val = document.getElementById('event-select').value;
+  activeEventId = val || null;
+  const info = document.getElementById('event-quick-info');
+  if (val) {
+    const ev = events.find(e => e.id === val);
+    if (ev) info.textContent = '🎨 ' + ev.theme + ' · ' + ev.layout + ' layout · ' + formatDate(ev.date);
+  } else { info.textContent = ''; }
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+  catch(e){ return d; }
+}
+
+// ═══════════════════════════════
+// ADMIN
+// ═══════════════════════════════
+const THEME_COLORS = {
+  wedding:'#C9A84C','neon-bday':'#ff2dfc',garden:'#7ec87e',retro:'#ff6b1a',
+  boho:'#c4956a',glam:'#d966ff',corporate:'#4a9eff',sweet16:'#ff69b4'
+};
+const THEME_EMOJIS = {
+  wedding:'💍','neon-bday':'🎉',garden:'🌿',retro:'🕹️',
+  boho:'🪶',glam:'✨',corporate:'💼',sweet16:'🎀'
+};
+
+function renderAdminList() {
+  const el = document.getElementById('events-list');
+  if (!events.length) {
+    el.innerHTML = '<div class="empty-state">No events yet.<br>Tap + New Event to get started.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  [...events].reverse().forEach(ev => {
+    const card = document.createElement('div');
+    card.className = 'event-card';
+    card.style.setProperty('--card-accent', THEME_COLORS[ev.theme] || '#C9A84C');
+    card.innerHTML = `
+      <div class="event-card-name">${ev.name}</div>
+      <div class="event-card-meta">${formatDate(ev.date)}${ev.subtext ? ' · ' + ev.subtext : ''}</div>
+      <div class="event-card-theme-badge">${THEME_EMOJIS[ev.theme]||''} ${ev.theme} · ${ev.layout}</div>
+      <div class="event-card-actions">
+        <button class="btn-small" onclick="openForm('${ev.id}')">Edit</button>
+        <button class="btn-small danger" onclick="confirmDeleteEvent('${ev.id}')">Delete</button>
+      </div>
+    `;
+    el.appendChild(card);
+  });
+}
+
+function confirmDeleteEvent(id) {
+  const ev = events.find(e => e.id === id);
+  showModal('Delete Event?', `"${ev.name}" will be permanently deleted.`, () => deleteEvent(id));
+}
+function deleteEvent(id) {
+  events = events.filter(e => e.id !== id);
+  DB.save('te_events', events);
+  if (activeEventId === id) activeEventId = null;
+  renderAdminList();
+  toast('Event deleted');
+}
+
+// ═══════════════════════════════
+// FORM
+// ═══════════════════════════════
+function openForm(id) {
+  editingEventId = id;
+  document.getElementById('form-title').textContent = id ? 'Edit Event' : 'New Event';
+  // Reset
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-date').value = '';
+  document.getElementById('f-subtext').value = '';
+  formTheme = 'wedding'; formLayout = 'single';
+  document.querySelectorAll('.theme-option').forEach(t => t.classList.remove('selected'));
+  document.querySelector('[data-theme="wedding"]').classList.add('selected');
+  document.querySelectorAll('.layout-option').forEach(l => l.classList.remove('selected'));
+  document.querySelector('[data-layout="single"]').classList.add('selected');
+
+  if (id) {
+    const ev = events.find(e => e.id === id);
+    if (ev) {
+      document.getElementById('f-name').value = ev.name;
+      document.getElementById('f-date').value = ev.date || '';
+      document.getElementById('f-subtext').value = ev.subtext || '';
+      formTheme = ev.theme || 'wedding';
+      formLayout = ev.layout || 'single';
+      document.querySelectorAll('.theme-option').forEach(t => t.classList.remove('selected'));
+      const tEl = document.querySelector(`[data-theme="${formTheme}"]`);
+      if (tEl) tEl.classList.add('selected');
+      document.querySelectorAll('.layout-option').forEach(l => l.classList.remove('selected'));
+      const lEl = document.querySelector(`[data-layout="${formLayout}"]`);
+      if (lEl) lEl.classList.add('selected');
+    }
+  }
+  showPage('pg-form');
+}
+
+function selectFormTheme(el) {
+  document.querySelectorAll('.theme-option').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  formTheme = el.dataset.theme;
+}
+
+function selectLayout(el) {
+  document.querySelectorAll('.layout-option').forEach(l => l.classList.remove('selected'));
+  el.classList.add('selected');
+  formLayout = el.dataset.layout;
+}
+
+function saveEvent() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { toast('Please enter an event name'); return; }
+  const ev = {
+    id: editingEventId || ('ev_' + Date.now()),
+    name,
+    date: document.getElementById('f-date').value,
+    subtext: document.getElementById('f-subtext').value.trim(),
+    theme: formTheme,
+    layout: formLayout
+  };
+  if (editingEventId) {
+    const idx = events.findIndex(e => e.id === editingEventId);
+    if (idx >= 0) events[idx] = ev;
+  } else {
+    events.push(ev);
+  }
+  DB.save('te_events', events);
+  toast(editingEventId ? 'Event updated!' : 'Event created!');
+  showPage('pg-admin');
+}
+
+// ═══════════════════════════════
+// BOOTH LAUNCH
+// ═══════════════════════════════
+function launchBooth() {
+  if (!activeEventId) { toast('Select an event first'); return; }
+  const ev = events.find(e => e.id === activeEventId);
+  if (!ev) return;
+  showPage('pg-booth');
+  applyBoothTheme(ev);
+  document.getElementById('booth-event-label').textContent = ev.name;
+  document.getElementById('booth-event-label').style.fontFamily = THEME_CONFIG[ev.theme]?.frameFont || 'serif';
+  initCamera();
+}
+
+function applyBoothTheme(ev) {
+  const booth = document.getElementById('pg-booth');
+  // Remove all theme classes
+  Object.values(THEME_CONFIG).forEach(t => booth.classList.remove(t.css));
+  const cfg = THEME_CONFIG[ev.theme] || THEME_CONFIG.wedding;
+  booth.classList.add(cfg.css);
+  // Particles
+  const pl = document.getElementById('particle-layer');
+  pl.innerHTML = '';
+  if (cfg.particles.length) {
+    for (let i = 0; i < 14; i++) {
+      const p = document.createElement('span');
+      p.className = 'particle';
+      p.textContent = cfg.particles[i % cfg.particles.length];
+      p.style.cssText = `
+        left:${Math.random()*100}%;
+        font-size:${12 + Math.random()*16}px;
+        color:${cfg.colors[Math.floor(Math.random()*cfg.colors.length)]};
+        animation-duration:${6 + Math.random()*9}s;
+        animation-delay:${Math.random()*9}s;
+        opacity:0.6;
+      `;
+      pl.appendChild(p);
+    }
+  }
+}
+
+async function initCamera() {
+  const loading = document.getElementById('booth-loading');
+  loading.style.display = 'flex';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width:{ideal:1280}, height:{ideal:960} },
+      audio: false
+    });
+    videoStream = stream;
+    const vid = document.getElementById('booth-video');
+    vid.srcObject = stream;
+    await vid.play();
+    loading.style.display = 'none';
+  } catch(e) {
+    loading.innerHTML = `<div style="color:#ff8080;font-family:var(--font-display);font-size:18px;font-style:italic;text-align:center;padding:20px">
+      Camera access required.<br><small style="font-size:14px;font-style:normal">Allow camera in Safari Settings, then reload.</small>
+    </div>`;
+  }
+}
+
+function exitBooth() {
+  stopCamera();
+  showPage('pg-landing');
+}
+function stopCamera() {
+  if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+  if (gifInterval) { clearInterval(gifInterval); gifInterval = null; }
+}
+
+// ═══════════════════════════════
+// BOOTH MODES
+// ═══════════════════════════════
+// Fix: inline onclick won't work for function with space in name
+document.querySelectorAll('.mode-pill').forEach(pill => {
+  pill.addEventListener('click', function() { setBoothMode(this.dataset.mode, this); });
+});
+
+function setBoothMode(mode, el) {
+  boothMode = mode;
+  document.querySelectorAll('.mode-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  const icons = { photo:'📸', gif:'🔄', video:'🎬' };
+  const labels = { photo:'PHOTO', gif:'GIF', video:'VIDEO' };
+  document.getElementById('shutter-icon').textContent = icons[mode];
+  document.getElementById('shutter-label').textContent = labels[mode];
+}
+
+// ═══════════════════════════════
+// CAPTURE ORCHESTRATION
+// ═══════════════════════════════
+let sessionBlobs = [];   // holds blobs for current multi-shot session
+let sessionTotal = 0;    // how many shots needed this session
+let sessionCurrent = 0;  // how many taken so far
+
+function triggerCapture() {
+  if (isCapturing) return;
+  isCapturing = true;
+
+  if (boothMode === 'gif') { startCountdown(3, doGIF); return; }
+  if (boothMode === 'video') { startCountdown(3, doVideo); return; }
+
+  // Photo mode — figure out how many shots the layout needs
+  const ev = events.find(e => e.id === activeEventId);
+  const needed = { single:1, strip2:2, strip3:3, strip4:4, grid4:4 }[ev?.layout] || 1;
+  sessionBlobs = [];
+  sessionTotal = needed;
+  sessionCurrent = 0;
+  startPhotoSession();
+}
+
+function startPhotoSession() {
+  sessionCurrent++;
+  // Show "Photo X of N" in the shutter label when doing multi-shot
+  if (sessionTotal > 1) {
+    document.getElementById('shutter-label').textContent = `${sessionCurrent} OF ${sessionTotal}`;
+  }
+  startCountdown(3, snapPhoto);
+}
+
+function snapPhoto() {
+  // Flash
+  const flash = document.getElementById('booth-flash');
+  flash.classList.add('on');
+  setTimeout(() => flash.classList.remove('on'), 150);
+
+  const vid = document.getElementById('booth-video');
+  const canvas = document.createElement('canvas');
+  canvas.width = vid.videoWidth || 1280;
+  canvas.height = vid.videoHeight || 960;
+  const ctx = canvas.getContext('2d');
+  ctx.save(); ctx.scale(-1,1); ctx.drawImage(vid, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+  stampWatermark(ctx, canvas.width, canvas.height);
+
+  canvas.toBlob(blob => {
+    sessionBlobs.push(blob);
+    if (sessionCurrent < sessionTotal) {
+      // Short pause between shots so the flash clears, then next countdown
+      setTimeout(() => startPhotoSession(), 800);
+    } else {
+      // All shots done — save them all then build strip / share
+      finishPhotoSession();
+    }
+  }, 'image/jpeg', 0.92);
+}
+
+async function finishPhotoSession() {
+  // Reset label
+  document.getElementById('shutter-label').textContent = 'PHOTO';
+  isCapturing = false;
+
+  const ev = events.find(e => e.id === activeEventId);
+
+  if (sessionBlobs.length === 1) {
+    // Single photo — save and share directly
+    await saveSinglePhoto(sessionBlobs[0], ev);
+  } else {
+    // Multi-shot — save all then build strip
+    await saveAllAndBuildStrip(sessionBlobs, ev);
+  }
+  sessionBlobs = [];
+}
+
+async function saveSinglePhoto(blob, ev) {
+  const id = 'cap_' + Date.now();
+  const meta = { id, type:'photo', mimeType:'image/jpeg', eventId: activeEventId, eventName: ev?.name||'', timestamp: Date.now() };
+  captureItems.push(meta);
+  DB.save('te_captures_meta', captureItems);
+  idbSave(id, blob);
+  mediaBlobs[id] = URL.createObjectURL(blob);
+  showPostCaptureShare(id, meta);
+}
+
+async function saveAllAndBuildStrip(blobs, ev) {
+  // Save each blob with a slight timestamp offset so IDs are unique
+  const savedIds = [];
+  for (let i = 0; i < blobs.length; i++) {
+    const id = 'cap_' + (Date.now() + i);
+    const meta = { id, type:'photo', mimeType:'image/jpeg', eventId: activeEventId, eventName: ev?.name||'', timestamp: Date.now() + i };
+    captureItems.push(meta);
+    idbSave(id, blobs[i]);
+    mediaBlobs[id] = URL.createObjectURL(blobs[i]);
+    savedIds.push(id);
+  }
+  DB.save('te_captures_meta', captureItems);
+  // Build strip from just these new photos (not previous session photos)
+  await buildAndShowStrip(ev, savedIds);
+}
+
+async function buildAndShowStrip(ev, ids) {
+  await showPostCaptureStrip(ev, ids);
+}
+
+function startCountdown(n, cb) {
+  const disp = document.getElementById('booth-countdown');
+  const num = document.getElementById('cd-num');
+  disp.classList.add('show');
+  let count = n;
+  num.textContent = count;
+  resetAnim(num);
+  const tick = setInterval(() => {
+    count--;
+    if (count <= 0) { clearInterval(tick); disp.classList.remove('show'); cb(); }
+    else { num.textContent = count; resetAnim(num); }
+  }, 1000);
+}
+function resetAnim(el) { el.style.animation='none'; void el.offsetWidth; el.style.animation=''; }
+function doGIF() {
+  const vid = document.getElementById('booth-video');
+  const GIF_DURATION = 2500;
+  const FPS = 12;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.min(vid.videoWidth || 640, 640);
+  canvas.height = Math.min(vid.videoHeight || 480, 480);
+  const ctx = canvas.getContext('2d');
+  const prog = document.getElementById('capture-progress');
+  const bar = document.getElementById('prog-bar');
+  prog.querySelector('.prog-label').textContent = 'Recording GIF';
+  prog.classList.add('show');
+  document.getElementById('shutter').classList.add('recording');
+
+  const stream = canvas.captureStream(FPS);
+  const mimes = ['video/webm;codecs=vp8','video/webm','video/mp4'];
+  let mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+  const mr = new MediaRecorder(stream, mime ? {mimeType:mime} : {});
+  const chunks = [];
+  mr.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+  mr.onstop = () => {
+    prog.classList.remove('show');
+    document.getElementById('shutter').classList.remove('recording');
+    const blob = new Blob(chunks, {type: mime || 'video/webm'});
+    saveCapture(blob, 'gif', mime || 'video/webm');
+    isCapturing = false;
+    clearInterval(gifInterval);
+  };
+
+  const start = Date.now();
+  gifInterval = setInterval(() => {
+    const elapsed = Date.now() - start;
+    bar.style.width = Math.min(100, (elapsed/GIF_DURATION)*100) + '%';
+    ctx.save(); ctx.scale(-1,1); ctx.drawImage(vid,-canvas.width,0,canvas.width,canvas.height); ctx.restore();
+    stampWatermark(ctx, canvas.width, canvas.height);
+  }, 1000/FPS);
+
+  mr.start();
+  setTimeout(() => { if(mr.state!=='inactive') mr.stop(); }, GIF_DURATION);
+}
+
+// ─── VIDEO ───
+function doVideo() {
+  if (!videoStream) { isCapturing=false; return; }
+  const VIDEO_DURATION = 8000;
+  const prog = document.getElementById('capture-progress');
+  const bar = document.getElementById('prog-bar');
+  prog.querySelector('.prog-label').textContent = 'Recording Video';
+  prog.classList.add('show');
+  document.getElementById('shutter').classList.add('recording');
+  bar.style.width = '0%';
+
+  const mimes = ['video/webm;codecs=vp8','video/webm','video/mp4'];
+  let mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || '';
+  try { mediaRecorder = new MediaRecorder(videoStream, mime ? {mimeType:mime} : {}); }
+  catch(e) { mediaRecorder = new MediaRecorder(videoStream); }
+  recordedChunks = [];
+  mediaRecorder.ondataavailable = e => { if(e.data.size>0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    prog.classList.remove('show');
+    document.getElementById('shutter').classList.remove('recording');
+    const blob = new Blob(recordedChunks, {type: mime||'video/webm'});
+    saveCapture(blob, 'video', mime||'video/webm');
+    isCapturing = false;
+  };
+  const start = Date.now();
+  const pi = setInterval(() => {
+    const pct = Math.min(100,((Date.now()-start)/VIDEO_DURATION)*100);
+    bar.style.width = pct + '%';
+    if (pct >= 100) clearInterval(pi);
+  }, 100);
+  mediaRecorder.start();
+  setTimeout(() => { if(mediaRecorder.state!=='inactive') mediaRecorder.stop(); clearInterval(pi); }, VIDEO_DURATION);
+}
+
+function stampWatermark(ctx, w, h) {
+  const ev = events.find(e => e.id === activeEventId);
+  if (!ev) return;
+  ctx.font = `italic ${Math.round(w*0.025)}px Playfair Display, serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 6;
+  ctx.fillText(ev.name, w/2, h - Math.round(h*0.03));
+  ctx.shadowBlur = 0;
+}
+
+// ═══════════════════════════════
+// SAVE CAPTURE (gif / video only)
+// ═══════════════════════════════
+async function saveCapture(blob, type, mimeType) {
+  const ev = events.find(e => e.id === activeEventId);
+  const id = 'cap_' + Date.now();
+  const meta = { id, type, mimeType, eventId: activeEventId, eventName: ev ? ev.name : '', timestamp: Date.now() };
+  captureItems.push(meta);
+  DB.save('te_captures_meta', captureItems);
+  idbSave(id, blob);
+  mediaBlobs[id] = URL.createObjectURL(blob);
+  showPostCaptureShare(id, meta);
+}
+
+// Show share screen right after capture (for gif/video or single-photo layout)
+function showPostCaptureShare(id, meta) {
+  currentShareItem = { id, meta };
+  const ev = events.find(e => e.id === meta.eventId);
+
+  document.getElementById('share-event-name').textContent = meta.eventName || '';
+  document.getElementById('share-message').textContent =
+    `Thanks for visiting with us! Here's your ${meta.type === 'gif' ? 'GIF' : meta.type} 🎉`;
+
+  const wrap = document.getElementById('share-media-wrap');
+  wrap.innerHTML = '';
+  if (meta.type === 'photo') {
+    const img = document.createElement('img'); img.src = mediaBlobs[id]; wrap.appendChild(img);
+  } else {
+    const vid = document.createElement('video');
+    vid.src = mediaBlobs[id]; vid.autoplay=true; vid.loop=true; vid.muted=true; vid.playsinline=true;
+    wrap.appendChild(vid);
+  }
+
+  // Show share as overlay on top of booth (don't leave booth)
+  document.getElementById('share-overlay').classList.add('show');
+}
+
+// Build strip from a specific set of photo IDs and show share overlay
+async function showPostCaptureStrip(ev, ids) {
+  // Use only the IDs passed in (this session's photos)
+  const toUse = ids.map(id => captureItems.find(c => c.id === id)).filter(Boolean);
+
+  // Load blobs for these photos
+  for (const c of toUse) {
+    if (!mediaBlobs[c.id]) {
+      const blob = await idbGet(c.id);
+      if (blob) mediaBlobs[c.id] = URL.createObjectURL(blob);
+    }
+  }
+
+  const cfg = THEME_CONFIG[ev.theme] || THEME_CONFIG.wedding;
+  const W = 400, PHOTO_H = 280, PAD = 12, LABEL_H = 70, HEADER_H = 48;
+  const count = toUse.length;
+  const totalH = HEADER_H + count * (PHOTO_H + PAD) + LABEL_H;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = totalH;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#111'; ctx.fillRect(0,0,W,totalH);
+  const grad = ctx.createLinearGradient(0,0,0,totalH);
+  grad.addColorStop(0, cfg.colors[0] + '33'); grad.addColorStop(1, '#111');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,totalH);
+
+  // Decorative top line
+  ctx.fillStyle = cfg.colors[0]; ctx.fillRect(0, 0, W, 3);
+
+  // Header: brand
+  ctx.fillStyle = cfg.colors[0];
+  ctx.font = `bold 13px Bebas Neue, cursive`;
+  ctx.textAlign = 'center'; ctx.letterSpacing = '4px';
+  ctx.fillText('TORRICK EVENTS', W/2, 32);
+
+  const loadImg = src => new Promise(res => {
+    const i = new Image(); i.crossOrigin='anonymous';
+    i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src;
+  });
+
+  let y = HEADER_H;
+  for (const c of toUse) {
+    if (mediaBlobs[c.id]) {
+      const img = await loadImg(mediaBlobs[c.id]);
+      if (img) {
+        // Crop to fill
+        const srcAR = img.width / img.height;
+        const dstAR = (W - PAD*2) / PHOTO_H;
+        let sx=0, sy=0, sw=img.width, sh=img.height;
+        if (srcAR > dstAR) { sw = img.height * dstAR; sx = (img.width-sw)/2; }
+        else { sh = img.width / dstAR; sy = (img.height-sh)/2; }
+        ctx.drawImage(img, sx, sy, sw, sh, PAD, y, W-PAD*2, PHOTO_H);
+      } else {
+        ctx.fillStyle='#222'; ctx.fillRect(PAD,y,W-PAD*2,PHOTO_H);
+      }
+    }
+    // Frame border
+    ctx.strokeStyle = cfg.colors[0]; ctx.lineWidth = 1.5;
+    ctx.strokeRect(PAD, y, W-PAD*2, PHOTO_H);
+    y += PHOTO_H + PAD;
+  }
+
+  // Bottom label: event name
+  ctx.fillStyle = cfg.colors[0];
+  ctx.font = `italic 22px Playfair Display, serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText(ev.name, W/2, y + 30);
+  if (ev.subtext) {
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '11px DM Sans, sans-serif';
+    ctx.fillText(ev.subtext, W/2, y + 50);
+  }
+  // Bottom accent line
+  ctx.fillStyle = cfg.colors[0]; ctx.fillRect(0, totalH-3, W, 3);
+
+  // Convert strip canvas to blob and show share overlay
+  canvas.toBlob(stripBlob => {
+    const stripUrl = URL.createObjectURL(stripBlob);
+    currentShareItem = { id: 'strip_live', meta: { type:'strip', eventName: ev.name }, stripBlob, stripUrl };
+
+    document.getElementById('share-event-name').textContent = ev.name;
+    document.getElementById('share-message').textContent = `Thanks for visiting with us! Here's your photo strip 🎉`;
+
+    const wrap = document.getElementById('share-media-wrap');
+    wrap.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = stripUrl;
+    img.style.cssText = 'max-width:100%;max-height:320px;border-radius:8px;border:1px solid rgba(255,255,255,0.07)';
+    wrap.appendChild(img);
+
+    document.getElementById('share-overlay').classList.add('show');
+  }, 'image/jpeg', 0.94);
+}
+
+// ═══════════════════════════════
+// GALLERY
+// ═══════════════════════════════
+async function openGallery() {
+  showPage('pg-gallery');
+  await renderGallery();
+}
+
+async function renderGallery() {
+  const grid = document.getElementById('gallery-grid');
+  const evCaptures = captureItems.filter(c => c.eventId === activeEventId);
+  if (!evCaptures.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:rgba(255,255,255,0.3);font-family:Playfair Display,serif;font-style:italic;font-size:20px">No captures yet.<br>Head back to the booth!</div>';
+    return;
+  }
+  grid.innerHTML = '';
+  const sorted = [...evCaptures].reverse();
+  for (const item of sorted) {
+    if (!mediaBlobs[item.id]) {
+      const blob = await idbGet(item.id);
+      if (blob) mediaBlobs[item.id] = URL.createObjectURL(blob);
+    }
+    if (!mediaBlobs[item.id]) continue;
+    const div = document.createElement('div');
+    div.className = 'gal-item';
+
+    const badge = document.createElement('div');
+    badge.className = 'gal-badge';
+    badge.textContent = item.type === 'photo' ? '📸 Photo' : item.type === 'gif' ? '🔄 GIF' : '🎬 Video';
+
+    const del = document.createElement('button');
+    del.className = 'gal-delete'; del.textContent = '✕';
+    del.onclick = (e) => { e.stopPropagation(); confirmDeleteCapture(item.id); };
+
+    if (item.type === 'photo') {
+      const img = document.createElement('img');
+      img.src = mediaBlobs[item.id];
+      div.appendChild(img);
+    } else {
+      const vid = document.createElement('video');
+      vid.src = mediaBlobs[item.id];
+      vid.autoplay = true; vid.loop = true; vid.muted = true; vid.playsinline = true;
+      div.appendChild(vid);
+    }
+    div.appendChild(badge); div.appendChild(del);
+    div.onclick = () => openShare(item.id);
+    grid.appendChild(div);
+  }
+}
+
+function confirmDeleteCapture(id) {
+  showModal('Delete this capture?', 'This photo/video will be permanently removed.', () => {
+    captureItems = captureItems.filter(c => c.id !== id);
+    DB.save('te_captures_meta', captureItems);
+    idbDelete(id);
+    if (mediaBlobs[id]) { URL.revokeObjectURL(mediaBlobs[id]); delete mediaBlobs[id]; }
+    renderGallery();
+    toast('Deleted');
+  });
+}
+
+// ═══════════════════════════════
+// SHARE
+// ═══════════════════════════════
+function openShare(id) {
+  const meta = captureItems.find(c => c.id === id);
+  if (!meta || !mediaBlobs[id]) return;
+  currentShareItem = { id, meta };
+
+  document.getElementById('share-event-name').textContent = meta.eventName || '';
+  document.getElementById('share-message').textContent =
+    `Thanks for visiting with us! Here's your ${meta.type === 'gif' ? 'GIF' : meta.type} — Torrick Events 🎉`;
+
+  const wrap = document.getElementById('share-media-wrap');
+  wrap.innerHTML = '';
+  if (meta.type === 'photo') {
+    const img = document.createElement('img');
+    img.src = mediaBlobs[id];
+    img.style.cssText = 'max-width:100%;max-height:300px;border-radius:8px;border:1px solid rgba(255,255,255,0.07)';
+    wrap.appendChild(img);
+  } else {
+    const vid = document.createElement('video');
+    vid.src = mediaBlobs[id]; vid.autoplay=true; vid.loop=true; vid.muted=true; vid.playsinline=true;
+    vid.style.cssText = 'max-width:100%;max-height:300px;border-radius:8px';
+    wrap.appendChild(vid);
+  }
+  document.getElementById('share-overlay').classList.add('show');
+}
+
+function closeShareOverlay() {
+  document.getElementById('share-overlay').classList.remove('show');
+  currentShareItem = null;
+}
+// Keep old alias working
+function closeShare() { closeShareOverlay(); }
+
+// ─── CARRIER SHORTCUT ───
+function fillCarrier(domain) {
+  const input = document.getElementById('guest-email');
+  // If they've already typed a number, append the domain
+  const current = input.value.trim().replace(/@.*/, '');
+  if (current && /^\d{10}$/.test(current.replace(/\D/g,''))) {
+    input.value = current.replace(/\D/g,'') + '@' + domain;
+  } else {
+    input.placeholder = '10digitnumber@' + domain;
+    input.value = '';
+    input.focus();
+    // Prefill the @domain part so they just type their number
+    input.value = '@' + domain;
+    // Move cursor to start
+    input.setSelectionRange(0, 0);
+  }
+}
+
+// ─── SEND VIA SENDGRID NETLIFY FUNCTION ───
+async function sendViaEmail() {
+  const email = document.getElementById('guest-email').value.trim();
+  if (!email || !email.includes('@')) {
+    setStatus('Please enter a valid email or phone@carrier.com', 'error'); return;
+  }
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  setStatus('', '');
+
+  try {
+    // Get the image as base64
+    const { stripBlob, stripUrl, id, meta } = currentShareItem;
+    const isStrip = !!stripBlob;
+    let blob = isStrip ? stripBlob : await idbGet(id);
+    if (!blob) { setStatus('Could not load photo. Try saving instead.', 'error'); btn.disabled=false; btn.textContent='✉ Send Photo'; return; }
+
+    const base64 = await blobToBase64(blob);
+    const ev = events.find(e => e.id === activeEventId);
+    const eventName = ev ? ev.name : 'your event';
+    const fileType = (isStrip || meta?.type === 'photo') ? 'image/jpeg' : 'video/webm';
+    const fileName = isStrip ? 'photo-strip.jpg' : (meta?.type === 'photo' ? 'photo.jpg' : 'video.webm');
+
+    const res = await fetch('/.netlify/functions/send-photo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        eventName,
+        fileBase64: base64,
+        fileName,
+        fileType
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      setStatus('✓ Sent! Check your phone or inbox.', 'success');
+      btn.textContent = '✓ Sent!';
+      document.getElementById('guest-email').value = '';
+      setTimeout(() => { btn.disabled=false; btn.textContent='✉ Send Another'; }, 2000);
+    } else {
+      throw new Error(data.error || 'Send failed');
+    }
+  } catch(e) {
+    console.error(e);
+    setStatus('Could not send. Try saving to device instead.', 'error');
+    btn.disabled=false; btn.textContent='✉ Send Photo';
+  }
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('send-status');
+  el.textContent = msg;
+  el.style.color = type === 'error' ? '#ff8080' : type === 'success' ? '#7ec87e' : 'var(--accent)';
+}
+
+function blobToBase64(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
+async function downloadCapture() {
+  if (!currentShareItem) return;
+  const { id, meta, stripBlob, stripUrl } = currentShareItem;
+  const isStrip = !!stripBlob;
+  const ext = (meta.type === 'photo' || isStrip) ? 'jpg' : 'webm';
+  const url = isStrip ? stripUrl : mediaBlobs[id];
+  if (!url) { toast('Not found'); return; }
+  const a = document.createElement('a');
+  a.href = url; a.download = `torrick-events-${isStrip ? 'strip' : meta.type}.${ext}`; a.click();
+  toast('Saved!');
+}
+
+// ═══════════════════════════════
+// INIT
+// ═══════════════════════════════
+(async function init() {
+  await openIDB();
+  await loadAllMediaURLs();
+  refreshLandingSelect();
+})();
+</script>
+</body>
+</html>
