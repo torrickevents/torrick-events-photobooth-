@@ -1478,6 +1478,13 @@ function startGuestMode(mode) {
     sessionBlobs = [];
     sessionTotal = shotCounts[mode] || 3;
     sessionCurrent = 0;
+    // Apply B&W filter to live camera preview for vintage mode
+    const vid = document.getElementById('booth-video');
+    if (mode === 'glam') {
+      vid.style.filter = 'grayscale(1) contrast(1.1) sepia(0.2)';
+    } else {
+      vid.style.filter = '';
+    }
     startPhotoSession();
   };
 
@@ -1543,22 +1550,33 @@ function setupAdminTap() {
 }
 
 // ═══════════════════════════════
-// WAKE LOCK — keep screen on
+// WAKE LOCK — keep screen on always
 // ═══════════════════════════════
 let wakeLock = null;
 async function initWakeLock() {
   try {
     if ('wakeLock' in navigator) {
       wakeLock = await navigator.wakeLock.request('screen');
-      // Re-acquire if released (e.g. tab switch)
-      document.addEventListener('visibilitychange', async () => {
-        if (document.visibilityState === 'visible' && !wakeLock) {
-          try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
-        }
+      wakeLock.addEventListener('release', () => {
+        wakeLock = null;
+        // Re-acquire immediately when released
+        setTimeout(initWakeLock, 500);
       });
     }
-  } catch(e) { console.log('Wake lock not available:', e); }
+  } catch(e) { console.log('Wake lock:', e.message); }
 }
+
+// Re-acquire wake lock whenever page becomes visible
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    await initWakeLock();
+  }
+});
+
+// Also re-acquire on any user interaction (belt and suspenders)
+document.addEventListener('touchstart', async () => {
+  if (!wakeLock) await initWakeLock();
+}, { passive: true });
 
 function applyBoothTheme(ev) {
   const booth = document.getElementById('pg-booth');
@@ -1695,8 +1713,8 @@ function snapPhoto() {
   canvas.toBlob(blob => {
     sessionBlobs.push(blob);
     if (sessionCurrent < sessionTotal) {
-      // Burst: instant, no pause. Others: brief pause for flash to clear
-      setTimeout(() => startPhotoSession(), boothMode === 'burst' ? 50 : 800);
+      // Burst: 600ms between shots (fast but visible). Others: 800ms pause
+      setTimeout(() => startPhotoSession(), boothMode === 'burst' ? 600 : 800);
     } else {
       finishPhotoSession();
     }
@@ -1746,6 +1764,8 @@ function applyGlamFilter(ctx, w, h) {
 async function finishPhotoSession() {
   document.getElementById('shutter-label').textContent = 'PHOTO';
   isCapturing = false;
+  // Reset any camera filter
+  document.getElementById('booth-video').style.filter = '';
   const ev = events.find(e => e.id === activeEventId);
 
   if (sessionBlobs.length === 1) {
@@ -2488,6 +2508,9 @@ async function downloadAllPhotos() {
 // INIT
 // ═══════════════════════════════
 (async function init() {
+  // Start wake lock immediately
+  initWakeLock();
+
   await openIDB();
   await loadAllMediaURLs();
 
