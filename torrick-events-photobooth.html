@@ -604,6 +604,37 @@ select:focus { outline:none; border-color:var(--accent); }
 .carrier-btn:hover { background:rgba(201,168,76,0.15); border-color:var(--accent); color:var(--accent); }
 .carrier-btn:active { transform:scale(0.96); }
 
+/* ═══ PIN SCREEN ═══ */
+#pg-pin {
+  background: radial-gradient(ellipse 100% 80% at 50% 0%, rgba(201,168,76,0.12) 0%, transparent 60%), #0d0d0d;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0;
+  padding: 40px 28px;
+}
+.pin-logo { font-family:var(--font-bold); font-size:32px; letter-spacing:5px; background:linear-gradient(135deg,#C9A84C,#f0d98c,#C9A84C); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-align:center; margin-bottom:4px; }
+.pin-sub { font-size:10px; letter-spacing:5px; text-transform:uppercase; color:var(--accent); opacity:0.7; text-align:center; margin-bottom:32px; }
+.pin-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 24px; width:100%; max-width:340px; }
+.pin-label { font-size:10px; letter-spacing:4px; text-transform:uppercase; color:var(--accent); margin-bottom:12px; text-align:center; }
+.pin-dots { display:flex; justify-content:center; gap:12px; margin-bottom:20px; }
+.pin-dot { width:16px; height:16px; border-radius:50%; border:2px solid rgba(201,168,76,0.4); background:transparent; transition:all 0.2s; }
+.pin-dot.filled { background:var(--accent); border-color:var(--accent); }
+.pin-keypad { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.pin-key {
+  padding:16px; border-radius:8px;
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08);
+  color:var(--text); font-size:20px; font-family:var(--font-ui); font-weight:500;
+  cursor:pointer; text-align:center; transition:var(--transition);
+}
+.pin-key:active { background:rgba(201,168,76,0.2); border-color:var(--accent); transform:scale(0.95); }
+.pin-key.del { font-size:16px; color:var(--muted); }
+.pin-key.enter { background:var(--accent); color:#000; font-weight:600; font-size:13px; letter-spacing:2px; }
+.pin-key.enter:active { background:#b8962f; }
+.pin-status { text-align:center; font-size:12px; min-height:18px; margin-top:12px; color:var(--accent); }
+.pin-new-link { text-align:center; margin-top:16px; font-size:11px; color:var(--muted); }
+.pin-new-link a { color:var(--accent); text-decoration:none; cursor:pointer; }
+
 /* ═══ GUEST WELCOME SCREEN ═══ */
 #pg-guest {
   position: relative;
@@ -718,6 +749,39 @@ select:focus { outline:none; border-color:var(--accent); }
 <script>window.CLOUDINARY_CLOUD_NAME = 'ddgpdh8da';</script>
 
 <!-- ══════════════════════════════
+     PIN LOGIN SCREEN
+══════════════════════════════ -->
+<div id="pg-pin" class="page active">
+  <div class="pin-logo">TORRICK EVENTS</div>
+  <div class="pin-sub">Photo Booth Studio</div>
+  <div class="pin-card">
+    <div class="pin-label" id="pin-label">Enter your PIN</div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="dot-0"></div>
+      <div class="pin-dot" id="dot-1"></div>
+      <div class="pin-dot" id="dot-2"></div>
+      <div class="pin-dot" id="dot-3"></div>
+    </div>
+    <div class="pin-keypad">
+      <div class="pin-key" onclick="pinKey('1')">1</div>
+      <div class="pin-key" onclick="pinKey('2')">2</div>
+      <div class="pin-key" onclick="pinKey('3')">3</div>
+      <div class="pin-key" onclick="pinKey('4')">4</div>
+      <div class="pin-key" onclick="pinKey('5')">5</div>
+      <div class="pin-key" onclick="pinKey('6')">6</div>
+      <div class="pin-key" onclick="pinKey('7')">7</div>
+      <div class="pin-key" onclick="pinKey('8')">8</div>
+      <div class="pin-key" onclick="pinKey('9')">9</div>
+      <div class="pin-key del" onclick="pinDelete()">⌫</div>
+      <div class="pin-key" onclick="pinKey('0')">0</div>
+      <div class="pin-key enter" onclick="pinSubmit()">GO</div>
+    </div>
+    <div class="pin-status" id="pin-status"></div>
+  </div>
+  <div class="pin-new-link">First time? <a onclick="pinSetNew()">Create a PIN</a></div>
+</div>
+
+<!-- ══════════════════════════════
      LANDING / SELECT EVENT
 ══════════════════════════════ -->
 <div id="pg-landing" class="page active">
@@ -734,6 +798,8 @@ select:focus { outline:none; border-color:var(--accent); }
   <div class="landing-actions" style="margin-top:16px">
     <button class="btn-primary" onclick="launchBooth()">Open Photo Booth</button>
     <button class="btn-secondary" onclick="showPage('pg-admin')">Manage Events</button>
+    <button class="btn-secondary" style="font-size:10px;padding:12px;opacity:0.6" onclick="syncNow()">↻ Sync Events</button>
+    <button class="btn-secondary" style="font-size:10px;padding:12px;opacity:0.6" onclick="logout()">⇥ Switch Account</button>
   </div>
 </div>
 
@@ -1070,6 +1136,96 @@ let pendingDeleteId = null;
 let pendingDeleteType = null; // 'event' | 'capture'
 
 // ═══════════════════════════════
+// PIN SYSTEM & CLOUD SYNC
+// ═══════════════════════════════
+let pinBuffer = '';
+let currentPin = DB.load('te_pin', null);
+let pinMode = 'login'; // 'login' | 'create'
+
+function pinKey(k) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += k;
+  updatePinDots();
+  if (pinBuffer.length === 4) setTimeout(pinSubmit, 200);
+}
+
+function pinDelete() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+}
+
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('dot-' + i).classList.toggle('filled', i < pinBuffer.length);
+  }
+}
+
+function pinSetNew() {
+  pinMode = 'create';
+  pinBuffer = '';
+  updatePinDots();
+  document.getElementById('pin-label').textContent = 'Create a new PIN';
+  document.getElementById('pin-status').textContent = 'Choose a 4-digit PIN you\'ll remember';
+  document.querySelector('.pin-new-link').style.display = 'none';
+}
+
+async function pinSubmit() {
+  if (pinBuffer.length < 4) { 
+    document.getElementById('pin-status').textContent = 'Enter 4 digits';
+    return; 
+  }
+  const pin = pinBuffer;
+  pinBuffer = '';
+  updatePinDots();
+
+  if (pinMode === 'create') {
+    // Save PIN locally and sync empty events
+    DB.save('te_pin', pin);
+    currentPin = pin;
+    document.getElementById('pin-status').textContent = 'Saving…';
+    await cloudSaveEvents(pin);
+    document.getElementById('pin-status').textContent = '✓ PIN created!';
+    setTimeout(() => { showPage('pg-landing'); }, 800);
+    return;
+  }
+
+  // Login mode — load events from cloud
+  document.getElementById('pin-status').textContent = 'Syncing…';
+  try {
+    const res = await fetch(`/.netlify/functions/sync-events?pin=${encodeURIComponent(pin)}`);
+    const data = await res.json();
+    if (data.events && data.events.length >= 0) {
+      // Merge cloud events with local — cloud wins
+      events = data.events;
+      DB.save('te_events', events);
+      DB.save('te_pin', pin);
+      currentPin = pin;
+      document.getElementById('pin-status').textContent = `✓ Welcome back! ${events.length} event${events.length !== 1 ? 's' : ''} loaded.`;
+      setTimeout(() => { showPage('pg-landing'); }, 800);
+    } else {
+      document.getElementById('pin-status').textContent = 'Could not sync. Try again.';
+    }
+  } catch(e) {
+    // Offline fallback — use local events
+    DB.save('te_pin', pin);
+    currentPin = pin;
+    document.getElementById('pin-status').textContent = '⚠ Offline — using local events';
+    setTimeout(() => { showPage('pg-landing'); }, 1000);
+  }
+}
+
+async function cloudSaveEvents(pin) {
+  if (!pin) return;
+  try {
+    await fetch('/.netlify/functions/sync-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin, events })
+    });
+  } catch(e) { console.warn('Cloud save failed, saved locally only'); }
+}
+
+// ═══════════════════════════════
 // PAGE NAVIGATION
 // ═══════════════════════════════
 function showPage(id) {
@@ -1170,10 +1326,11 @@ function confirmDeleteEvent(id) {
   const ev = events.find(e => e.id === id);
   showModal('Delete Event?', `"${ev.name}" will be permanently deleted.`, () => deleteEvent(id));
 }
-function deleteEvent(id) {
+async function deleteEvent(id) {
   events = events.filter(e => e.id !== id);
   DB.save('te_events', events);
   if (activeEventId === id) activeEventId = null;
+  await cloudSaveEvents(currentPin);
   renderAdminList();
   toast('Event deleted');
 }
@@ -1225,7 +1382,7 @@ function selectLayout(el) {
   formLayout = el.dataset.layout;
 }
 
-function saveEvent() {
+async function saveEvent() {
   const name = document.getElementById('f-name').value.trim();
   if (!name) { toast('Please enter an event name'); return; }
   const ev = {
@@ -1244,6 +1401,8 @@ function saveEvent() {
   }
   DB.save('te_events', events);
   toast(editingEventId ? 'Event updated!' : 'Event created!');
+  // Sync to cloud
+  await cloudSaveEvents(currentPin);
   showPage('pg-admin');
 }
 
@@ -1309,6 +1468,33 @@ function startGuestMode(mode) {
   if (!videoStream) initCamera();
   // Auto-trigger capture immediately
   setTimeout(() => triggerCapture(), 500);
+}
+
+async function syncNow() {
+  if (!currentPin) { showPage('pg-pin'); return; }
+  toast('Syncing…');
+  try {
+    const res = await fetch(`/.netlify/functions/sync-events?pin=${encodeURIComponent(currentPin)}`);
+    const data = await res.json();
+    if (data.events) {
+      events = data.events;
+      DB.save('te_events', events);
+      refreshLandingSelect();
+      toast(`✓ Synced! ${events.length} event${events.length !== 1 ? 's' : ''} loaded.`);
+    }
+  } catch(e) { toast('Offline — using local events'); }
+}
+
+function logout() {
+  DB.save('te_pin', null);
+  currentPin = null;
+  pinBuffer = '';
+  pinMode = 'login';
+  updatePinDots();
+  document.getElementById('pin-label').textContent = 'Enter your PIN';
+  document.getElementById('pin-status').textContent = '';
+  document.querySelector('.pin-new-link').style.display = '';
+  showPage('pg-pin');
 }
 
 // ═══════════════════════════════
@@ -2143,7 +2329,22 @@ async function downloadAllPhotos() {
 (async function init() {
   await openIDB();
   await loadAllMediaURLs();
-  refreshLandingSelect();
+
+  // Auto-login if PIN saved on this device
+  if (currentPin) {
+    document.getElementById('pin-status').textContent = 'Syncing…';
+    try {
+      const res = await fetch(`/.netlify/functions/sync-events?pin=${encodeURIComponent(currentPin)}`);
+      const data = await res.json();
+      if (data.events) {
+        events = data.events;
+        DB.save('te_events', events);
+      }
+    } catch(e) { /* use local events */ }
+    showPage('pg-landing');
+    refreshLandingSelect();
+  }
+  // else stay on PIN screen
 })();
 </script>
 </body>
