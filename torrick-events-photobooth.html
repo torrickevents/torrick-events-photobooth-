@@ -773,7 +773,13 @@ select:focus { outline:none; border-color:var(--accent); }
 <div id="pg-gallery" class="page scroll">
   <div class="gallery-header">
     <div class="gallery-title">Gallery</div>
-    <button class="btn-small" onclick="showPage('pg-booth')">← Booth</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn-small success" onclick="downloadAllPhotos()" id="dl-all-btn">⬇ All</button>
+      <button class="btn-small" onclick="showPage('pg-booth')">← Booth</button>
+    </div>
+  </div>
+  <div id="gallery-export-bar" style="display:none;padding:12px 16px;background:rgba(201,168,76,0.08);border-bottom:1px solid rgba(201,168,76,0.15);text-align:center;">
+    <div style="font-size:11px;letter-spacing:2px;color:var(--accent)" id="export-status">Preparing download…</div>
   </div>
   <div class="gallery-grid" id="gallery-grid"></div>
   <div style="height:20px"></div>
@@ -1722,6 +1728,68 @@ async function downloadCapture() {
   const a = document.createElement('a');
   a.href = url; a.download = `torrick-events-${isStrip ? 'strip' : meta.type}.${ext}`; a.click();
   toast('Saved!');
+}
+
+// ═══════════════════════════════
+// DOWNLOAD ALL — export event photos
+// ═══════════════════════════════
+async function downloadAllPhotos() {
+  const ev = events.find(e => e.id === activeEventId);
+  if (!ev) { toast('No event selected'); return; }
+
+  const evCaptures = captureItems.filter(c => c.eventId === activeEventId);
+  if (!evCaptures.length) { toast('No captures yet'); return; }
+
+  const bar = document.getElementById('gallery-export-bar');
+  const status = document.getElementById('export-status');
+  bar.style.display = 'block';
+  status.textContent = 'Loading photos…';
+
+  // Load all blobs
+  const files = [];
+  for (let i = 0; i < evCaptures.length; i++) {
+    const c = evCaptures[i];
+    status.textContent = `Loading ${i + 1} of ${evCaptures.length}…`;
+    let blob = null;
+    if (mediaBlobs[c.id]) {
+      const res = await fetch(mediaBlobs[c.id]);
+      blob = await res.blob();
+    } else {
+      blob = await idbGet(c.id);
+    }
+    if (blob) {
+      const ext = c.type === 'photo' ? 'jpg' : 'webm';
+      files.push({ name: `${ev.name.replace(/[^a-z0-9]/gi,'_')}_${i+1}.${ext}`, blob });
+    }
+  }
+
+  if (!files.length) { status.textContent = 'No files found.'; return; }
+
+  // If only one file, just download it directly
+  if (files.length === 1) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(files[0].blob);
+    a.download = files[0].name;
+    a.click();
+    status.textContent = '✓ Downloaded!';
+    setTimeout(() => { bar.style.display = 'none'; }, 3000);
+    return;
+  }
+
+  // Multiple files — download each one with a short delay between
+  // (ZIP requires a library; this approach works on all browsers without dependencies)
+  status.textContent = `Downloading ${files.length} files…`;
+  for (let i = 0; i < files.length; i++) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(files[i].blob);
+    a.download = files[i].name;
+    a.click();
+    await new Promise(r => setTimeout(r, 600));
+    status.textContent = `Downloaded ${i + 1} of ${files.length}…`;
+  }
+
+  status.textContent = `✓ All ${files.length} files downloaded! Check your Downloads folder.`;
+  setTimeout(() => { bar.style.display = 'none'; }, 4000);
 }
 
 // ═══════════════════════════════
