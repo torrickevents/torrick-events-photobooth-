@@ -37,7 +37,8 @@ function sendEmail(to, subject, html, base64, fileName, fileType, apiKey, fromEm
 function sendSMSLink(to, eventName, photoUrl, apiKey, fromEmail) {
   return new Promise((resolve, reject) => {
     const subject = `Your photo from ${eventName}`;
-    const html = `<p>📸 Your photo from <strong>${eventName}</strong> is ready!<br><br><a href="${photoUrl}" style="font-size:18px;font-weight:bold;">Tap here to view & save your photo</a><br><br>— Torrick Events 🎉</p>`;
+    // Keep SMS body extremely short so carrier doesn't truncate the URL
+    const html = `<p>Your photo is ready! Save it here:</p><p>${photoUrl}</p><p>- Torrick Events</p>`;
     const payload = JSON.stringify({
       from: `Torrick Events <${fromEmail}>`,
       to: [to],
