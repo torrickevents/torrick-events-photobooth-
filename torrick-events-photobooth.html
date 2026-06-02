@@ -616,6 +616,7 @@ select:focus { outline:none; border-color:var(--accent); }
 }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <!-- Cloudinary config — replace YOUR_CLOUD_NAME with your actual cloud name -->
@@ -794,43 +795,41 @@ select:focus { outline:none; border-color:var(--accent); }
   position:fixed;inset:0;z-index:150;
   background:rgba(0,0,0,0.84);backdrop-filter:blur(10px);
   display:none;align-items:center;justify-content:center;
-  padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;
 ">
   <div class="share-card">
     <button class="close-share" onclick="closeShareOverlay()">✕</button>
     <div class="share-brand">Torrick Events</div>
     <div class="share-message" id="share-message">Thanks for visiting with us!</div>
     <div class="share-event-name" id="share-event-name"></div>
-    <div id="share-media-wrap" style="margin:12px 0;text-align:center"></div>
+    <div id="share-media-wrap" style="margin:10px 0;text-align:center"></div>
 
-    <!-- Email send form -->
-    <div id="send-form" style="margin-top:4px">
-      <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);opacity:0.8;margin-bottom:8px">Send to your phone or email</div>
-      <input id="guest-email" type="email" inputmode="email" placeholder="yourname@email.com or phone@carrier.com"
+    <!-- QR CODE SECTION -->
+    <div id="qr-section" style="display:none;text-align:center;margin-bottom:16px">
+      <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:10px">📱 Scan to get your photo</div>
+      <div id="qr-code-wrap" style="display:inline-block;background:#fff;padding:12px;border-radius:10px;margin-bottom:8px"></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5)">Point your phone camera at the QR code</div>
+    </div>
+
+    <!-- TAB SWITCHER -->
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button id="tab-qr" onclick="switchTab('qr')" style="flex:1;padding:10px;border-radius:6px;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;background:var(--accent);color:#000;border:none;font-weight:600;font-family:var(--font-ui)">QR Code</button>
+      <button id="tab-email" onclick="switchTab('email')" style="flex:1;padding:10px;border-radius:6px;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.15);font-family:var(--font-ui)">Email</button>
+    </div>
+
+    <!-- EMAIL SECTION -->
+    <div id="email-section" style="display:none">
+      <input id="guest-email" type="email" inputmode="email" placeholder="yourname@email.com"
         style="width:100%;padding:13px 14px;background:#1e1e1e;border:1px solid rgba(255,255,255,0.12);
         border-radius:6px;color:#fff;font-size:16px;font-family:var(--font-ui);outline:none;margin-bottom:8px"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='rgba(255,255,255,0.12)'">
+      <div id="send-status" style="min-height:18px;font-size:12px;text-align:center;color:var(--accent);margin-bottom:8px"></div>
+      <button class="share-btn primary" id="send-btn" onclick="sendViaEmail()" style="margin-bottom:8px">✉ Send to Email</button>
+    </div>
 
-      <!-- Carrier shortcut buttons -->
-      <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:6px">Or tap your carrier to text it</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="carrier-btns">
-        <button class="carrier-btn" onclick="fillCarrier('vtext.com')">Verizon</button>
-        <button class="carrier-btn" onclick="fillCarrier('txt.att.net')">AT&T</button>
-        <button class="carrier-btn" onclick="fillCarrier('tmomail.net')">T-Mobile</button>
-        <button class="carrier-btn" onclick="fillCarrier('messaging.sprintpcs.com')">Sprint</button>
-        <button class="carrier-btn" onclick="fillCarrier('mymetropcs.com')">Metro</button>
-        <button class="carrier-btn" onclick="fillCarrier('sms.myboostmobile.com')">Boost</button>
-        <button class="carrier-btn" onclick="fillCarrier('vmobl.com')">Virgin</button>
-        <button class="carrier-btn" onclick="fillCarrier('cricketwireless.net')">Cricket</button>
-      </div>
-
-      <div id="send-status" style="min-height:20px;font-size:12px;text-align:center;color:var(--accent);margin-bottom:8px"></div>
-
-      <div class="share-actions">
-        <button class="share-btn primary" id="send-btn" onclick="sendViaEmail()">✉ Send Photo</button>
-        <button class="share-btn secondary" onclick="downloadCapture()">⬇ Save to Device</button>
-        <button class="share-btn secondary" onclick="closeShareOverlay()">← Back to Booth</button>
-      </div>
+    <div class="share-actions" style="margin-top:4px">
+      <button class="share-btn secondary" onclick="downloadCapture()">⬇ Save to This Device</button>
+      <button class="share-btn secondary" onclick="closeShareOverlay()">← Back to Booth</button>
     </div>
   </div>
 </div>
@@ -1442,6 +1441,12 @@ function showPostCaptureShare(id, meta) {
 
   // Show share as overlay on top of booth (don't leave booth)
   document.getElementById('share-overlay').classList.add('show');
+  // Default to QR tab and generate QR code
+  switchTab('qr');
+  document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px">Generating QR…</div>';
+  // Generate QR in background
+  const blob2 = meta.type === 'photo' ? await idbGet(meta.id) : null;
+  if (blob2) generateQRCode(blob2, 'image/jpeg', meta.eventName || '');
 }
 
 // Build strip from a specific set of photo IDs and show share overlay
@@ -1536,6 +1541,10 @@ async function showPostCaptureStrip(ev, ids) {
     wrap.appendChild(img);
 
     document.getElementById('share-overlay').classList.add('show');
+    // Default to QR tab and generate QR
+    switchTab('qr');
+    document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px">Generating QR…</div>';
+    generateQRCode(stripBlob, 'image/jpeg', ev.name);
   }, 'image/jpeg', 0.94);
 }
 
@@ -1630,12 +1639,73 @@ function openShare(id) {
 
 function closeShareOverlay() {
   document.getElementById('share-overlay').classList.remove('show');
+  document.getElementById('qr-code-wrap').innerHTML = '';
+  window._currentShareUrl = null;
   currentShareItem = null;
 }
 // Keep old alias working
 function closeShare() { closeShareOverlay(); }
 
-// ─── CARRIER SHORTCUT ───
+// ─── TAB SWITCHER ───
+function switchTab(tab) {
+  const qrSection = document.getElementById('qr-section');
+  const emailSection = document.getElementById('email-section');
+  const tabQR = document.getElementById('tab-qr');
+  const tabEmail = document.getElementById('tab-email');
+  if (tab === 'qr') {
+    qrSection.style.display = 'block';
+    emailSection.style.display = 'none';
+    tabQR.style.background = 'var(--accent)'; tabQR.style.color = '#000'; tabQR.style.border = 'none';
+    tabEmail.style.background = 'rgba(255,255,255,0.08)'; tabEmail.style.color = 'rgba(255,255,255,0.7)'; tabEmail.style.border = '1px solid rgba(255,255,255,0.15)';
+  } else {
+    qrSection.style.display = 'none';
+    emailSection.style.display = 'block';
+    tabEmail.style.background = 'var(--accent)'; tabEmail.style.color = '#000'; tabEmail.style.border = 'none';
+    tabQR.style.background = 'rgba(255,255,255,0.08)'; tabQR.style.color = 'rgba(255,255,255,0.7)'; tabQR.style.border = '1px solid rgba(255,255,255,0.15)';
+  }
+}
+
+// ─── GENERATE QR CODE ───
+async function generateQRCode(blob, fileType, eventName) {
+  const qrWrap = document.getElementById('qr-code-wrap');
+  const qrSection = document.getElementById('qr-section');
+  qrWrap.innerHTML = '';
+
+  try {
+    // Upload to Cloudinary to get a URL
+    const photoUrl = await uploadToCloudinary(blob, fileType);
+
+    // Save to get short ID
+    let shareUrl = photoUrl;
+    try {
+      const saveRes = await fetch('/.netlify/functions/save-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoUrl, eventName })
+      });
+      const saveData = await saveRes.json();
+      if (saveData.shortId) {
+        shareUrl = `${window.location.origin}/photo.html?id=${saveData.shortId}`;
+      }
+    } catch(e) { shareUrl = photoUrl; }
+
+    // Store for email sending too
+    window._currentShareUrl = shareUrl;
+
+    // Generate QR
+    new QRCode(qrWrap, {
+      text: shareUrl,
+      width: 180, height: 180,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+    qrSection.style.display = 'block';
+  } catch(e) {
+    console.error('QR generation failed:', e);
+    qrSection.style.display = 'none';
+  }
+}
 function fillCarrier(domain) {
   const input = document.getElementById('guest-email');
   // If they've already typed a number, append the domain
@@ -1711,24 +1781,23 @@ async function sendViaEmail() {
     let payload;
 
     if (isSMS) {
-      // Upload to Cloudinary from browser, then save short ID, then send link
-      setStatus('Uploading photo…', '');
-      const photoUrl = await uploadToCloudinary(blob, fileType);
-
-      // Save to Netlify Blobs to get a short ID
-      setStatus('Creating link…', '');
-      let shortId = null;
-      try {
-        const saveRes = await fetch('/.netlify/functions/save-photo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ photoUrl, eventName })
-        });
-        const saveData = await saveRes.json();
-        shortId = saveData.shortId || null;
-      } catch(e) { console.warn('Could not save short URL, using direct URL'); }
-
-      payload = { to: email, eventName, photoUrl, shortId };
+      // Use already-uploaded URL from QR generation if available
+      let photoUrl = window._currentShareUrl;
+      if (!photoUrl) {
+        setStatus('Uploading photo…', '');
+        photoUrl = await uploadToCloudinary(blob, fileType);
+        let shortId = null;
+        try {
+          const saveRes = await fetch('/.netlify/functions/save-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photoUrl, eventName })
+          });
+          const saveData = await saveRes.json();
+          if (saveData.shortId) photoUrl = `${window.location.origin}/photo.html?id=${saveData.shortId}`;
+        } catch(e) {}
+      }
+      payload = { to: email, eventName, photoUrl, shortId: null };
     } else {
       // Regular email — send base64
       const base64 = await blobToBase64(blob);
