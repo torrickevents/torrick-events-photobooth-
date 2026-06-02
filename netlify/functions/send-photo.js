@@ -36,9 +36,12 @@ function sendEmail(to, subject, html, base64, fileName, fileType, apiKey, fromEm
 // Send SMS with just a link (no attachment)
 function sendSMSLink(to, eventName, photoUrl, apiKey, fromEmail) {
   return new Promise((resolve, reject) => {
-    const subject = `Your photo from ${eventName}`;
-    // Keep SMS body extremely short so carrier doesn't truncate the URL
-    const html = `<p>Your photo is ready! Save it here:</p><p>${photoUrl}</p><p>- Torrick Events</p>`;
+    // Make URL open directly as image by ensuring proper format
+    // Cloudinary URLs: insert /fl_attachment/ before the version to force download
+    const cleanUrl = photoUrl.replace('/upload/', '/upload/fl_attachment/');
+    const subject = `Photo`;
+    // Ultra short message for SMS carrier gateways
+    const html = `<p>Photo ready: ${cleanUrl}</p>`;
     const payload = JSON.stringify({
       from: `Torrick Events <${fromEmail}>`,
       to: [to],
@@ -122,3 +125,4 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
   }
 };
+
