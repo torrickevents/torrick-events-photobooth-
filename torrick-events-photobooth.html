@@ -898,25 +898,32 @@ select:focus { outline:none; border-color:var(--accent); }
     <div class="guest-divider"></div>
     <div class="guest-prompt">Choose your experience</div>
     <div class="mode-buttons">
-      <button class="mode-btn" onclick="startGuestMode('photo')">
+      <button class="mode-btn" onclick="startGuestMode('strip3')">
         <span class="btn-icon">📸</span>
         <span class="btn-label">
-          <span class="btn-title">Photo Strip</span>
-          <span class="btn-desc">Multiple shots combined into one strip</span>
+          <span class="btn-title">3-Photo Strip</span>
+          <span class="btn-desc">3 shots · combined into one strip</span>
+        </span>
+      </button>
+      <button class="mode-btn" onclick="startGuestMode('grid4')">
+        <span class="btn-icon">⊞</span>
+        <span class="btn-label">
+          <span class="btn-title">4-Corner Grid</span>
+          <span class="btn-desc">4 shots · arranged in a 2×2 grid</span>
         </span>
       </button>
       <button class="mode-btn" onclick="startGuestMode('gif')">
         <span class="btn-icon">🔄</span>
         <span class="btn-label">
           <span class="btn-title">GIF / Boomerang</span>
-          <span class="btn-desc">2 second looping animation</span>
+          <span class="btn-desc">Looping animation · QR scan to save</span>
         </span>
       </button>
       <button class="mode-btn" onclick="startGuestMode('video')">
         <span class="btn-icon">🎬</span>
         <span class="btn-label">
           <span class="btn-title">Video</span>
-          <span class="btn-desc">8 second video clip</span>
+          <span class="btn-desc">8 second clip · QR scan to save</span>
         </span>
       </button>
     </div>
@@ -1456,22 +1463,31 @@ function startGuestMode(mode) {
   const ev = events.find(e => e.id === activeEventId);
   if (ev) applyBoothTheme(ev);
   document.getElementById('booth-event-label').textContent = ev ? ev.name : '';
-  const icons = { photo:'📸', gif:'🔄', video:'🎬' };
-  const labels = { photo:'PHOTO', gif:'GIF', video:'VIDEO' };
-  document.getElementById('shutter-icon').textContent = icons[mode];
-  document.getElementById('shutter-label').textContent = labels[mode];
-  document.querySelectorAll('.mode-pill').forEach(p => {
-    p.classList.toggle('active', p.dataset.mode === mode);
-  });
+
+  const icons = { strip3:'📸', grid4:'⊞', gif:'🔄', video:'🎬' };
+  const labels = { strip3:'3 PHOTOS', grid4:'4 PHOTOS', gif:'GIF', video:'VIDEO' };
+  document.getElementById('shutter-icon').textContent = icons[mode] || '📸';
+  document.getElementById('shutter-label').textContent = labels[mode] || '';
+
+  // Shot counts per mode
+  const shotCounts = { strip3:3, grid4:4, gif:1, video:1 };
 
   const startCapture = () => {
     isCapturing = true;
     sessionBlobs = [];
-    sessionTotal = { photo: { single:1, strip2:2, strip3:3, strip4:4, grid4:4 }[ev?.layout] || 1, gif:1, video:1 }[mode] || 1;
+    sessionTotal = shotCounts[mode] || 1;
     sessionCurrent = 0;
-    if (mode === 'photo') startPhotoSession();
-    else if (mode === 'gif') startCountdown(5, doGIF);
-    else startCountdown(5, doVideo);
+
+    if (mode === 'gif') startCountdown(5, doGIF);
+    else if (mode === 'video') startCountdown(5, doVideo);
+    else {
+      // Photo strip or grid — use photo session flow
+      // Temporarily set layout so strip builder knows what to build
+      if (ev) {
+        ev._guestLayout = mode; // strip3 or grid4
+      }
+      startPhotoSession();
+    }
   };
 
   if (!videoStream) {
@@ -1678,18 +1694,16 @@ function snapPhoto() {
 }
 
 async function finishPhotoSession() {
-  // Reset label
   document.getElementById('shutter-label').textContent = 'PHOTO';
   isCapturing = false;
-
   const ev = events.find(e => e.id === activeEventId);
 
   if (sessionBlobs.length === 1) {
-    // Single photo — save and share directly
     await saveSinglePhoto(sessionBlobs[0], ev);
   } else {
-    // Multi-shot — save all then build strip
-    await saveAllAndBuildStrip(sessionBlobs, ev);
+    // Use guestLayout if set, otherwise fall back to event layout
+    const layout = ev?._guestLayout || ev?.layout || 'strip3';
+    await saveAllAndBuildStrip(sessionBlobs, ev, layout);
   }
   sessionBlobs = [];
 }
@@ -1704,8 +1718,7 @@ async function saveSinglePhoto(blob, ev) {
   showPostCaptureShare(id, meta);
 }
 
-async function saveAllAndBuildStrip(blobs, ev) {
-  // Save each blob with a slight timestamp offset so IDs are unique
+async function saveAllAndBuildStrip(blobs, ev, layout) {
   const savedIds = [];
   for (let i = 0; i < blobs.length; i++) {
     const id = 'cap_' + (Date.now() + i);
@@ -1716,12 +1729,11 @@ async function saveAllAndBuildStrip(blobs, ev) {
     savedIds.push(id);
   }
   DB.save('te_captures_meta', captureItems);
-  // Build strip from just these new photos (not previous session photos)
-  await buildAndShowStrip(ev, savedIds);
+  await buildAndShowStrip(ev, savedIds, layout || ev?.layout || 'strip3');
 }
 
-async function buildAndShowStrip(ev, ids) {
-  await showPostCaptureStrip(ev, ids);
+async function buildAndShowStrip(ev, ids, layout) {
+  await showPostCaptureStrip(ev, ids, layout);
 }
 
 function startCountdown(n, cb) {
@@ -1864,7 +1876,15 @@ async function showPostCaptureShare(id, meta) {
   switchTab('qr');
   document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px;text-align:center">Generating QR…</div>';
 
-  // Generate QR for ALL types — get blob from IDB
+  // Hide email tab for gif/video — QR only
+  const emailTabBtn = document.getElementById('tab-email');
+  if (isVideo) {
+    emailTabBtn.style.display = 'none';
+  } else {
+    emailTabBtn.style.display = '';
+  }
+
+  // Generate QR for ALL types
   const blob = await idbGet(id);
   if (blob) {
     const fileType = meta.mimeType || (isVideo ? 'video/webm' : 'image/jpeg');
@@ -1876,11 +1896,11 @@ async function showPostCaptureShare(id, meta) {
 }
 
 // Build strip from a specific set of photo IDs and show share overlay
-async function showPostCaptureStrip(ev, ids) {
-  // Use only the IDs passed in (this session's photos)
+async function showPostCaptureStrip(ev, ids, layout) {
   const toUse = ids.map(id => captureItems.find(c => c.id === id)).filter(Boolean);
+  layout = layout || ev?.layout || 'strip3';
+  const isGrid = layout === 'grid4';
 
-  // Load blobs for these photos
   for (const c of toUse) {
     if (!mediaBlobs[c.id]) {
       const blob = await idbGet(c.id);
@@ -1889,87 +1909,109 @@ async function showPostCaptureStrip(ev, ids) {
   }
 
   const cfg = THEME_CONFIG[ev.theme] || THEME_CONFIG.wedding;
-  const W = 400, PHOTO_H = 280, PAD = 12, LABEL_H = 70, HEADER_H = 48;
-  const count = toUse.length;
-  const totalH = HEADER_H + count * (PHOTO_H + PAD) + LABEL_H;
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = totalH;
-  const ctx = canvas.getContext('2d');
+  const W = 400;
+  let canvas = document.createElement('canvas');
+  let ctx;
 
-  // Background
-  ctx.fillStyle = '#111'; ctx.fillRect(0,0,W,totalH);
-  const grad = ctx.createLinearGradient(0,0,0,totalH);
-  grad.addColorStop(0, cfg.colors[0] + '33'); grad.addColorStop(1, '#111');
-  ctx.fillStyle = grad; ctx.fillRect(0,0,W,totalH);
+  if (isGrid) {
+    // 2x2 grid layout
+    const CELL = 190, PAD = 8, HEADER = 48, LABEL = 60;
+    const totalH = HEADER + (CELL + PAD) * 2 + LABEL;
+    canvas.width = W; canvas.height = totalH;
+    ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#111'; ctx.fillRect(0,0,W,totalH);
+    const grad = ctx.createLinearGradient(0,0,0,totalH);
+    grad.addColorStop(0, cfg.colors[0]+'33'); grad.addColorStop(1,'#111');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,W,totalH);
+    ctx.fillStyle = cfg.colors[0]; ctx.fillRect(0,0,W,3);
+    ctx.fillStyle = cfg.colors[0];
+    ctx.font = 'bold 13px Bebas Neue, cursive';
+    ctx.textAlign = 'center';
+    ctx.fillText('TORRICK EVENTS', W/2, 32);
 
-  // Decorative top line
-  ctx.fillStyle = cfg.colors[0]; ctx.fillRect(0, 0, W, 3);
-
-  // Header: brand
-  ctx.fillStyle = cfg.colors[0];
-  ctx.font = `bold 13px Bebas Neue, cursive`;
-  ctx.textAlign = 'center'; ctx.letterSpacing = '4px';
-  ctx.fillText('TORRICK EVENTS', W/2, 32);
-
-  const loadImg = src => new Promise(res => {
-    const i = new Image(); i.crossOrigin='anonymous';
-    i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src;
-  });
-
-  let y = HEADER_H;
-  for (const c of toUse) {
-    if (mediaBlobs[c.id]) {
-      const img = await loadImg(mediaBlobs[c.id]);
-      if (img) {
-        // Crop to fill
-        const srcAR = img.width / img.height;
-        const dstAR = (W - PAD*2) / PHOTO_H;
-        let sx=0, sy=0, sw=img.width, sh=img.height;
-        if (srcAR > dstAR) { sw = img.height * dstAR; sx = (img.width-sw)/2; }
-        else { sh = img.width / dstAR; sy = (img.height-sh)/2; }
-        ctx.drawImage(img, sx, sy, sw, sh, PAD, y, W-PAD*2, PHOTO_H);
-      } else {
-        ctx.fillStyle='#222'; ctx.fillRect(PAD,y,W-PAD*2,PHOTO_H);
+    const loadImg = src => new Promise(res => { const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>res(i); i.onerror=()=>res(null); i.src=src; });
+    const positions = [
+      {x:PAD, y:HEADER},
+      {x:PAD*2+CELL, y:HEADER},
+      {x:PAD, y:HEADER+CELL+PAD},
+      {x:PAD*2+CELL, y:HEADER+CELL+PAD}
+    ];
+    for (let i = 0; i < Math.min(toUse.length, 4); i++) {
+      if (mediaBlobs[toUse[i].id]) {
+        const img = await loadImg(mediaBlobs[toUse[i].id]);
+        if (img) {
+          const srcAR = img.width/img.height, dstAR = CELL/CELL;
+          let sx=0,sy=0,sw=img.width,sh=img.height;
+          if (srcAR>dstAR){sw=img.height*dstAR;sx=(img.width-sw)/2;}
+          else{sh=img.width/dstAR;sy=(img.height-sh)/2;}
+          ctx.drawImage(img,sx,sy,sw,sh,positions[i].x,positions[i].y,CELL,CELL);
+        }
       }
+      ctx.strokeStyle=cfg.colors[0]; ctx.lineWidth=1.5;
+      ctx.strokeRect(positions[i].x,positions[i].y,CELL,CELL);
     }
-    // Frame border
-    ctx.strokeStyle = cfg.colors[0]; ctx.lineWidth = 1.5;
-    ctx.strokeRect(PAD, y, W-PAD*2, PHOTO_H);
-    y += PHOTO_H + PAD;
+    const labelY = HEADER+(CELL+PAD)*2+30;
+    ctx.fillStyle=cfg.colors[0]; ctx.font=`italic 20px Playfair Display,serif`; ctx.textAlign='center';
+    ctx.fillText(ev.name, W/2, labelY);
+    if (ev.subtext){ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='11px DM Sans,sans-serif';ctx.fillText(ev.subtext,W/2,labelY+20);}
+    ctx.fillStyle=cfg.colors[0]; ctx.fillRect(0,totalH-3,W,3);
+
+  } else {
+    // Vertical strip layout
+    const PHOTO_H = 280, PAD = 12, LABEL_H = 70, HEADER_H = 48;
+    const count = toUse.length;
+    const totalH = HEADER_H + count*(PHOTO_H+PAD) + LABEL_H;
+    canvas.width = W; canvas.height = totalH;
+    ctx = canvas.getContext('2d');
+    ctx.fillStyle='#111'; ctx.fillRect(0,0,W,totalH);
+    const grad = ctx.createLinearGradient(0,0,0,totalH);
+    grad.addColorStop(0,cfg.colors[0]+'33'); grad.addColorStop(1,'#111');
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,totalH);
+    ctx.fillStyle=cfg.colors[0]; ctx.fillRect(0,0,W,3);
+    ctx.fillStyle=cfg.colors[0];
+    ctx.font='bold 13px Bebas Neue,cursive'; ctx.textAlign='center';
+    ctx.fillText('TORRICK EVENTS',W/2,32);
+
+    const loadImg = src => new Promise(res=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src;});
+    let y = HEADER_H;
+    for (const c of toUse) {
+      if (mediaBlobs[c.id]) {
+        const img = await loadImg(mediaBlobs[c.id]);
+        if (img) {
+          const srcAR=img.width/img.height, dstAR=(W-PAD*2)/PHOTO_H;
+          let sx=0,sy=0,sw=img.width,sh=img.height;
+          if(srcAR>dstAR){sw=img.height*dstAR;sx=(img.width-sw)/2;}
+          else{sh=img.width/dstAR;sy=(img.height-sh)/2;}
+          ctx.drawImage(img,sx,sy,sw,sh,PAD,y,W-PAD*2,PHOTO_H);
+        }
+      }
+      ctx.strokeStyle=cfg.colors[0]; ctx.lineWidth=1.5;
+      ctx.strokeRect(PAD,y,W-PAD*2,PHOTO_H);
+      y+=PHOTO_H+PAD;
+    }
+    ctx.fillStyle=cfg.colors[0]; ctx.font=`italic 22px Playfair Display,serif`; ctx.textAlign='center';
+    ctx.fillText(ev.name,W/2,y+30);
+    if(ev.subtext){ctx.fillStyle='rgba(255,255,255,0.45)';ctx.font='11px DM Sans,sans-serif';ctx.fillText(ev.subtext,W/2,y+50);}
+    ctx.fillStyle=cfg.colors[0]; ctx.fillRect(0,canvas.height-3,W,3);
   }
 
-  // Bottom label: event name
-  ctx.fillStyle = cfg.colors[0];
-  ctx.font = `italic 22px Playfair Display, serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText(ev.name, W/2, y + 30);
-  if (ev.subtext) {
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = '11px DM Sans, sans-serif';
-    ctx.fillText(ev.subtext, W/2, y + 50);
-  }
-  // Bottom accent line
-  ctx.fillStyle = cfg.colors[0]; ctx.fillRect(0, totalH-3, W, 3);
-
-  // Convert strip canvas to blob and show share overlay
+  // Convert to blob and show share screen
   canvas.toBlob(stripBlob => {
     const stripUrl = URL.createObjectURL(stripBlob);
-    currentShareItem = { id: 'strip_live', meta: { type:'strip', eventName: ev.name }, stripBlob, stripUrl };
-
+    currentShareItem = { id:'strip_live', meta:{type:'strip',eventName:ev.name}, stripBlob, stripUrl };
     document.getElementById('share-event-name').textContent = ev.name;
     document.getElementById('share-message').textContent = `Thanks for visiting with us! Here's your photo strip 🎉`;
-
     const wrap = document.getElementById('share-media-wrap');
     wrap.innerHTML = '';
     const img = document.createElement('img');
     img.src = stripUrl;
-    img.style.cssText = 'max-width:100%;max-height:320px;border-radius:8px;border:1px solid rgba(255,255,255,0.07)';
+    img.style.cssText = 'max-width:100%;max-height:280px;border-radius:8px;border:1px solid rgba(255,255,255,0.07)';
     wrap.appendChild(img);
-
     document.getElementById('share-overlay').classList.add('show');
-    // Default to QR tab and generate QR
+    // Show email tab for strips
+    document.getElementById('tab-email').style.display = '';
     switchTab('qr');
-    document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px">Generating QR…</div>';
+    document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px;text-align:center">Generating QR…</div>';
     generateQRCode(stripBlob, 'image/jpeg', ev.name);
   }, 'image/jpeg', 0.94);
 }
@@ -2066,9 +2108,9 @@ function openShare(id) {
 function closeShareOverlay() {
   document.getElementById('share-overlay').classList.remove('show');
   document.getElementById('qr-code-wrap').innerHTML = '';
+  document.getElementById('tab-email').style.display = '';
   window._currentShareUrl = null;
   currentShareItem = null;
-  // Return to guest welcome screen
   showGuestScreen();
 }
 // Keep old alias
@@ -2200,35 +2242,36 @@ async function sendViaEmail() {
     const { stripBlob, id, meta } = currentShareItem;
     const isStrip = !!stripBlob;
     let blob = isStrip ? stripBlob : await idbGet(id);
-    if (!blob) { setStatus('Could not load photo. Try saving instead.', 'error'); btn.disabled=false; btn.textContent='✉ Send Photo'; return; }
+    if (!blob) { setStatus('Could not load media. Try saving instead.', 'error'); btn.disabled=false; btn.textContent='✉ Send'; return; }
 
     const ev = events.find(e => e.id === activeEventId);
     const eventName = ev ? ev.name : 'your event';
-    const fileType = (isStrip || meta?.type === 'photo') ? 'image/jpeg' : 'video/webm';
-    const fileName = isStrip ? 'photo-strip.jpg' : (meta?.type === 'photo' ? 'photo.jpg' : 'video.webm');
+    const isVideoType = !isStrip && (meta?.type === 'gif' || meta?.type === 'video');
+    const fileType = isStrip ? 'image/jpeg' : (isVideoType ? (meta?.mimeType || 'video/webm') : 'image/jpeg');
+    const fileName = isStrip ? 'photo-strip.jpg' : (isVideoType ? (meta?.type === 'gif' ? 'animation.webm' : 'video.webm') : 'photo.jpg');
 
     let payload;
 
-    if (isSMS) {
-      // Use already-uploaded URL from QR generation if available
-      let photoUrl = window._currentShareUrl;
-      if (!photoUrl) {
-        setStatus('Uploading photo…', '');
-        photoUrl = await uploadToCloudinary(blob, fileType);
-        let shortId = null;
+    if (isSMS || isVideoType) {
+      // For SMS OR video/gif — use Cloudinary link (videos too large for email attachment)
+      let shareUrl = window._currentShareUrl;
+      if (!shareUrl) {
+        setStatus('Uploading…', '');
+        shareUrl = await uploadToCloudinary(blob, fileType);
         try {
           const saveRes = await fetch('/.netlify/functions/save-photo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photoUrl, eventName })
+            body: JSON.stringify({ photoUrl: shareUrl, eventName })
           });
           const saveData = await saveRes.json();
-          if (saveData.shortId) photoUrl = `${window.location.origin}/photo.html?id=${saveData.shortId}`;
+          if (saveData.shortId) shareUrl = `${window.location.origin}/photo.html?id=${saveData.shortId}`;
         } catch(e) {}
+        window._currentShareUrl = shareUrl;
       }
-      payload = { to: email, eventName, photoUrl, shortId: null };
+      payload = { to: email, eventName, photoUrl: shareUrl, shortId: null };
     } else {
-      // Regular email — send base64
+      // Photo/strip — send as base64 attachment
       const base64 = await blobToBase64(blob);
       payload = { to: email, eventName, fileBase64: base64, fileName, fileType };
     }
@@ -2241,7 +2284,7 @@ async function sendViaEmail() {
 
     const data = await res.json();
     if (res.ok && data.success) {
-      setStatus(isSMS ? '✓ Text sent! They\'ll get a link to tap.' : '✓ Sent! Check your inbox.', 'success');
+      setStatus(isSMS ? '✓ Text sent!' : '✓ Sent! Check your inbox.', 'success');
       btn.textContent = '✓ Sent!';
       document.getElementById('guest-email').value = '';
       setTimeout(() => { btn.disabled=false; btn.textContent='✉ Send Another'; }, 2000);
@@ -2251,7 +2294,7 @@ async function sendViaEmail() {
   } catch(e) {
     console.error(e);
     setStatus('Could not send. Try saving to device instead.', 'error');
-    btn.disabled=false; btn.textContent='✉ Send Photo';
+    btn.disabled=false; btn.textContent='✉ Send';
   }
 }
 
