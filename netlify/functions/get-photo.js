@@ -27,7 +27,7 @@ exports.handler = async (event) => {
   if (!id) return { statusCode: 400, body: JSON.stringify({ error: 'Missing id' }) };
 
   const NETLIFY_TOKEN = process.env.NETLIFY_TOKEN;
-  const SITE_ID = process.env.SITE_ID;
+  const SITE_ID = process.env.NETLIFY_SITE_ID;
   if (!NETLIFY_TOKEN || !SITE_ID) return { statusCode: 500, body: JSON.stringify({ error: 'Not configured' }) };
 
   try {
