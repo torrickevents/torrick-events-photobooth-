@@ -40,7 +40,7 @@ exports.handler = async (event) => {
   if (!photoUrl) return { statusCode: 400, body: JSON.stringify({ error: 'Missing photoUrl' }) };
 
   const NETLIFY_TOKEN = process.env.NETLIFY_TOKEN;
-  const SITE_ID = process.env.SITE_ID;
+  const SITE_ID = process.env.NETLIFY_SITE_ID;
 
   if (!NETLIFY_TOKEN || !SITE_ID) {
     // Fallback: just return the original URL if blobs not configured
