@@ -1711,10 +1711,24 @@ async function sendViaEmail() {
     let payload;
 
     if (isSMS) {
-      // Upload to Cloudinary from browser, then send just the URL
+      // Upload to Cloudinary from browser, then save short ID, then send link
       setStatus('Uploading photo…', '');
       const photoUrl = await uploadToCloudinary(blob, fileType);
-      payload = { to: email, eventName, photoUrl };
+
+      // Save to Netlify Blobs to get a short ID
+      setStatus('Creating link…', '');
+      let shortId = null;
+      try {
+        const saveRes = await fetch('/.netlify/functions/save-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photoUrl, eventName })
+        });
+        const saveData = await saveRes.json();
+        shortId = saveData.shortId || null;
+      } catch(e) { console.warn('Could not save short URL, using direct URL'); }
+
+      payload = { to: email, eventName, photoUrl, shortId };
     } else {
       // Regular email — send base64
       const base64 = await blobToBase64(blob);
