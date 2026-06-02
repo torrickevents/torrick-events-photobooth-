@@ -616,7 +616,7 @@ select:focus { outline:none; border-color:var(--accent); }
 }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onerror="window.QRCode=null"></script>
 </head>
 <body>
 <!-- Cloudinary config — replace YOUR_CLOUD_NAME with your actual cloud name -->
@@ -1421,7 +1421,7 @@ async function saveCapture(blob, type, mimeType) {
 }
 
 // Show share screen right after capture (for gif/video or single-photo layout)
-function showPostCaptureShare(id, meta) {
+async function showPostCaptureShare(id, meta) {
   currentShareItem = { id, meta };
   const ev = events.find(e => e.id === meta.eventId);
 
@@ -1439,13 +1439,12 @@ function showPostCaptureShare(id, meta) {
     wrap.appendChild(vid);
   }
 
-  // Show share as overlay on top of booth (don't leave booth)
   document.getElementById('share-overlay').classList.add('show');
-  // Default to QR tab and generate QR code
   switchTab('qr');
   document.getElementById('qr-code-wrap').innerHTML = '<div style="padding:20px;color:#999;font-size:12px">Generating QR…</div>';
+
   // Generate QR in background
-  const blob2 = meta.type === 'photo' ? await idbGet(meta.id) : null;
+  const blob2 = meta.type === 'photo' ? await idbGet(id) : null;
   if (blob2) generateQRCode(blob2, 'image/jpeg', meta.eventName || '');
 }
 
@@ -1669,13 +1668,11 @@ function switchTab(tab) {
 async function generateQRCode(blob, fileType, eventName) {
   const qrWrap = document.getElementById('qr-code-wrap');
   const qrSection = document.getElementById('qr-section');
-  qrWrap.innerHTML = '';
+  qrWrap.innerHTML = '<div style="padding:20px;color:#999;font-size:12px;text-align:center">Creating link…</div>';
 
   try {
-    // Upload to Cloudinary to get a URL
     const photoUrl = await uploadToCloudinary(blob, fileType);
 
-    // Save to get short ID
     let shareUrl = photoUrl;
     try {
       const saveRes = await fetch('/.netlify/functions/save-photo', {
@@ -1689,21 +1686,24 @@ async function generateQRCode(blob, fileType, eventName) {
       }
     } catch(e) { shareUrl = photoUrl; }
 
-    // Store for email sending too
     window._currentShareUrl = shareUrl;
 
-    // Generate QR
-    new QRCode(qrWrap, {
-      text: shareUrl,
-      width: 180, height: 180,
-      colorDark: '#000000',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
+    // Use QR Server API — free, no key needed, just an image URL
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareUrl)}&bgcolor=ffffff&color=000000&margin=10`;
+    
+    qrWrap.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = qrUrl;
+    img.width = 180; img.height = 180;
+    img.style.borderRadius = '8px';
+    img.alt = 'QR Code';
+    qrWrap.appendChild(img);
     qrSection.style.display = 'block';
+
   } catch(e) {
     console.error('QR generation failed:', e);
-    qrSection.style.display = 'none';
+    qrWrap.innerHTML = '<div style="padding:10px;color:#ff8080;font-size:12px;text-align:center">QR failed — use Email tab</div>';
+    switchTab('email');
   }
 }
 function fillCarrier(domain) {
