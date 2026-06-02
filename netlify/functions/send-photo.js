@@ -1,90 +1,54 @@
 const https = require('https');
 
-// Send email via Resend
 function sendEmail(to, subject, html, base64, fileName, fileType, apiKey, fromEmail) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
       from: `Torrick Events <${fromEmail}>`,
-      to: [to],
-      subject,
-      html,
+      to: [to], subject, html,
       attachments: [{ filename: fileName, content: base64 }]
     });
     const req = https.request({
-      hostname: 'api.resend.com',
-      path: '/emails',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
+      hostname: 'api.resend.com', path: '/emails', method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
     }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) resolve();
-        else reject(new Error('Resend error ' + res.statusCode + ': ' + data));
-      });
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => { if (res.statusCode >= 200 && res.statusCode < 300) resolve(); else reject(new Error('Email error: ' + d)); });
     });
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
+    req.on('error', reject); req.write(payload); req.end();
   });
 }
 
-// Send SMS with just a link (no attachment)
-function sendSMSLink(to, eventName, photoUrl, apiKey, fromEmail) {
+function sendSMSLink(to, eventName, shortUrl, apiKey, fromEmail) {
   return new Promise((resolve, reject) => {
-    // Make URL open directly as image by ensuring proper format
-    // Cloudinary URLs: insert /fl_attachment/ before the version to force download
-    const cleanUrl = photoUrl.replace('/upload/', '/upload/fl_attachment/');
-    const subject = `Photo`;
-    // Ultra short message for SMS carrier gateways
-    const html = `<p>Photo ready: ${cleanUrl}</p>`;
+    const html = `<p>Your photo is ready! Tap to save: ${shortUrl}</p>`;
     const payload = JSON.stringify({
       from: `Torrick Events <${fromEmail}>`,
-      to: [to],
-      subject,
-      html
+      to: [to], subject: 'Your photo', html
     });
     const req = https.request({
-      hostname: 'api.resend.com',
-      path: '/emails',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
+      hostname: 'api.resend.com', path: '/emails', method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
     }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) resolve();
-        else reject(new Error('SMS send error: ' + data));
-      });
+      let d = ''; res.on('data', c => d += c);
+      res.on('end', () => { if (res.statusCode >= 200 && res.statusCode < 300) resolve(); else reject(new Error('SMS error: ' + d)); });
     });
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
+    req.on('error', reject); req.write(payload); req.end();
   });
 }
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   let body;
   try { body = JSON.parse(event.body); }
   catch(e) { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
-  const { to, eventName, fileBase64, fileName, fileType, photoUrl } = body;
-  if (!to) return { statusCode: 400, body: JSON.stringify({ error: 'Missing to address' }) };
+  const { to, eventName, fileBase64, fileName, fileType, photoUrl, shortId } = body;
+  if (!to) return { statusCode: 400, body: JSON.stringify({ error: 'Missing to' }) };
 
   const RESEND_KEY = process.env.RESEND_API_KEY;
   const FROM_EMAIL = process.env.FROM_EMAIL || 'photos@torrickevents.com';
+  const SITE_URL = process.env.SITE_URL || 'https://tevents-photobooth.netlify.app';
   if (!RESEND_KEY) return { statusCode: 500, body: JSON.stringify({ error: 'Resend key missing' }) };
 
   const SMS_DOMAINS = ['vtext.com','txt.att.net','tmomail.net','messaging.sprintpcs.com',
@@ -93,11 +57,12 @@ exports.handler = async (event) => {
 
   try {
     if (isSMS) {
-      // photoUrl was uploaded to Cloudinary directly from browser — just send the link
-      if (!photoUrl) return { statusCode: 400, body: JSON.stringify({ error: 'No photo URL for SMS' }) };
-      await sendSMSLink(to, eventName, photoUrl, RESEND_KEY, FROM_EMAIL);
+      // Build short URL to our photo page
+      const shareUrl = shortId
+        ? `${SITE_URL}/photo.html?id=${shortId}`
+        : photoUrl;
+      await sendSMSLink(to, eventName, shareUrl, RESEND_KEY, FROM_EMAIL);
     } else {
-      // Full email with embedded photo
       if (!fileBase64) return { statusCode: 400, body: JSON.stringify({ error: 'No photo data' }) };
       const isVideo = fileType && fileType.includes('video');
       const subject = `Your photo from ${eventName} — Torrick Events 🎉`;
@@ -125,4 +90,3 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
   }
 };
-
