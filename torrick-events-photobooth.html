@@ -604,6 +604,101 @@ select:focus { outline:none; border-color:var(--accent); }
 .carrier-btn:hover { background:rgba(201,168,76,0.15); border-color:var(--accent); color:var(--accent); }
 .carrier-btn:active { transform:scale(0.96); }
 
+/* ═══ GUEST WELCOME SCREEN ═══ */
+#pg-guest {
+  position: relative;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0;
+  padding: 40px 28px;
+}
+.guest-particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+.guest-content { position:relative; z-index:1; width:100%; max-width:480px; text-align:center; }
+.guest-event-name {
+  font-family: var(--t-font, var(--font-display));
+  font-size: clamp(32px, 6vw, 56px);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--t-accent, var(--accent));
+  line-height: 1.1;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 30px rgba(0,0,0,0.5);
+  animation: fadeUp 0.8s ease both;
+}
+.guest-subtext {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  animation: fadeUp 0.8s 0.1s ease both;
+}
+.guest-divider {
+  width: 80px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--t-accent, var(--accent)), transparent);
+  margin: 20px auto;
+  animation: fadeUp 0.8s 0.2s ease both;
+}
+.guest-prompt {
+  font-size: 11px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 28px;
+  animation: fadeUp 0.8s 0.3s ease both;
+}
+.mode-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  animation: fadeUp 0.8s 0.4s ease both;
+}
+.mode-btn {
+  padding: 22px 28px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.mode-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, var(--t-accent, var(--accent)) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.mode-btn:active { transform: scale(0.97); }
+.mode-btn:active::before { opacity: 0.15; }
+.mode-btn .btn-icon { font-size: 28px; }
+.mode-btn .btn-label { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+.mode-btn .btn-title { font-size:15px; font-weight:600; letter-spacing:2px; color:var(--t-accent, var(--accent)); }
+.mode-btn .btn-desc { font-size:11px; color:rgba(255,255,255,0.45); letter-spacing:1px; text-transform:none; font-weight:400; }
+.mode-btn-border { border-color: rgba(255,255,255,0.08); }
+.guest-admin-tap {
+  position: absolute;
+  top: 0; right: 0;
+  width: 60px; height: 60px;
+  z-index: 10;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Toast */
 #toast {
   position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(20px);
@@ -723,8 +818,46 @@ select:focus { outline:none; border-color:var(--accent); }
 </div>
 
 <!-- ══════════════════════════════
-     BOOTH
+     GUEST WELCOME SCREEN
 ══════════════════════════════ -->
+<div id="pg-guest" class="page">
+  <!-- Hidden admin tap zone — triple tap top-right corner -->
+  <div class="guest-admin-tap" id="admin-tap-zone"></div>
+  <!-- Particles -->
+  <div class="guest-particles" id="guest-particles"></div>
+  <!-- Content -->
+  <div class="guest-content">
+    <div class="guest-event-name" id="guest-event-name">Welcome</div>
+    <div class="guest-subtext" id="guest-event-subtext"></div>
+    <div class="guest-divider"></div>
+    <div class="guest-prompt">Choose your experience</div>
+    <div class="mode-buttons">
+      <button class="mode-btn" onclick="startGuestMode('photo')">
+        <span class="btn-icon">📸</span>
+        <span class="btn-label">
+          <span class="btn-title">Photo Strip</span>
+          <span class="btn-desc">Multiple shots combined into one strip</span>
+        </span>
+      </button>
+      <button class="mode-btn" onclick="startGuestMode('gif')">
+        <span class="btn-icon">🔄</span>
+        <span class="btn-label">
+          <span class="btn-title">GIF / Boomerang</span>
+          <span class="btn-desc">2 second looping animation</span>
+        </span>
+      </button>
+      <button class="mode-btn" onclick="startGuestMode('video')">
+        <span class="btn-icon">🎬</span>
+        <span class="btn-label">
+          <span class="btn-title">Video</span>
+          <span class="btn-desc">8 second video clip</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+
 <div id="pg-booth" class="page">
   <div id="booth-loading">
     <div class="loading-ring"></div>
@@ -746,8 +879,9 @@ select:focus { outline:none; border-color:var(--accent); }
   </div>
   <div class="booth-event-label" id="booth-event-label"></div>
 
-  <div class="booth-mode-row">
-    <div class="mode-pill active" data-mode="photo" onclick="setBooth Mode('photo',this)">Photo</div>
+  <!-- mode pills hidden — mode selected on guest screen -->
+  <div class="booth-mode-row" style="display:none">
+    <div class="mode-pill active" data-mode="photo" onclick="setBoothMode('photo',this)">Photo</div>
     <div class="mode-pill" data-mode="gif" onclick="setBoothMode('gif',this)">GIF</div>
     <div class="mode-pill" data-mode="video" onclick="setBoothMode('video',this)">Video</div>
   </div>
@@ -1114,17 +1248,104 @@ function saveEvent() {
 }
 
 // ═══════════════════════════════
-// BOOTH LAUNCH
+// GUEST WELCOME SCREEN
 // ═══════════════════════════════
 function launchBooth() {
   if (!activeEventId) { toast('Select an event first'); return; }
   const ev = events.find(e => e.id === activeEventId);
   if (!ev) return;
+  showGuestScreen(ev);
+  initWakeLock();
+}
+
+function showGuestScreen(ev) {
+  if (!ev) ev = events.find(e => e.id === activeEventId);
+  if (!ev) return;
+
+  // Apply theme to guest screen
+  const pg = document.getElementById('pg-guest');
+  Object.values(THEME_CONFIG).forEach(t => pg.classList.remove(t.css));
+  const cfg = THEME_CONFIG[ev.theme] || THEME_CONFIG.wedding;
+  pg.classList.add(cfg.css);
+  pg.style.background = `var(--t-bg, #0d0d0d)`;
+
+  // Set event name and subtext
+  document.getElementById('guest-event-name').textContent = ev.name;
+  document.getElementById('guest-event-name').style.fontFamily = cfg.frameFont + ', serif';
+  document.getElementById('guest-event-subtext').textContent = ev.subtext || ev.date ? formatDate(ev.date) : '';
+
+  // Particles
+  const pl = document.getElementById('guest-particles');
+  pl.innerHTML = '';
+  if (cfg.particles.length) {
+    for (let i = 0; i < 16; i++) {
+      const p = document.createElement('span');
+      p.className = 'particle';
+      p.textContent = cfg.particles[i % cfg.particles.length];
+      p.style.cssText = `left:${Math.random()*100}%;font-size:${14+Math.random()*16}px;color:${cfg.colors[Math.floor(Math.random()*cfg.colors.length)]};animation-duration:${6+Math.random()*9}s;animation-delay:${Math.random()*9}s;opacity:0.5;`;
+      pl.appendChild(p);
+    }
+  }
+
+  showPage('pg-guest');
+  setupAdminTap();
+}
+
+function startGuestMode(mode) {
+  boothMode = mode;
   showPage('pg-booth');
-  applyBoothTheme(ev);
-  document.getElementById('booth-event-label').textContent = ev.name;
-  document.getElementById('booth-event-label').style.fontFamily = THEME_CONFIG[ev.theme]?.frameFont || 'serif';
-  initCamera();
+  const ev = events.find(e => e.id === activeEventId);
+  if (ev) applyBoothTheme(ev);
+  document.getElementById('booth-event-label').textContent = ev ? ev.name : '';
+  // Update shutter label
+  const icons = { photo:'📸', gif:'🔄', video:'🎬' };
+  const labels = { photo:'PHOTO', gif:'GIF', video:'VIDEO' };
+  document.getElementById('shutter-icon').textContent = icons[mode];
+  document.getElementById('shutter-label').textContent = labels[mode];
+  // Update mode pills
+  document.querySelectorAll('.mode-pill').forEach(p => {
+    p.classList.toggle('active', p.dataset.mode === mode);
+  });
+  if (!videoStream) initCamera();
+  // Auto-trigger capture immediately
+  setTimeout(() => triggerCapture(), 500);
+}
+
+// ═══════════════════════════════
+// ADMIN TAP ZONE (triple tap top-right)
+// ═══════════════════════════════
+let adminTapCount = 0;
+let adminTapTimer = null;
+function setupAdminTap() {
+  const zone = document.getElementById('admin-tap-zone');
+  zone.onclick = () => {
+    adminTapCount++;
+    clearTimeout(adminTapTimer);
+    adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 800);
+    if (adminTapCount >= 3) {
+      adminTapCount = 0;
+      stopCamera();
+      showPage('pg-landing');
+    }
+  };
+}
+
+// ═══════════════════════════════
+// WAKE LOCK — keep screen on
+// ═══════════════════════════════
+let wakeLock = null;
+async function initWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      // Re-acquire if released (e.g. tab switch)
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && !wakeLock) {
+          try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+        }
+      });
+    }
+  } catch(e) { console.log('Wake lock not available:', e); }
 }
 
 function applyBoothTheme(ev) {
@@ -1175,8 +1396,7 @@ async function initCamera() {
 }
 
 function exitBooth() {
-  stopCamera();
-  showPage('pg-landing');
+  showGuestScreen();
 }
 function stopCamera() {
   if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
@@ -1641,8 +1861,10 @@ function closeShareOverlay() {
   document.getElementById('qr-code-wrap').innerHTML = '';
   window._currentShareUrl = null;
   currentShareItem = null;
+  // Return to guest welcome screen
+  showGuestScreen();
 }
-// Keep old alias working
+// Keep old alias
 function closeShare() { closeShareOverlay(); }
 
 // ─── TAB SWITCHER ───
